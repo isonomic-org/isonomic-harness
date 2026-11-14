@@ -1,0 +1,19 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  rust:
+    uses: isonomic-org/.github/.github/workflows/rust-ci.yml@main
+    secrets: inherit
+    with:
+      # --locked rides on the features input so clippy and test both use Cargo.lock.
+      features: --all-features --locked
+      # deps: the no-I/O allow-list for every library crate.
+      xtask: deps
