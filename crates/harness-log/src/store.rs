@@ -59,6 +59,9 @@ pub struct SessionMeta {
     pub created_at: Millis,
     /// Last event at.
     pub updated_at: Millis,
+    /// The model picked for the session at creation (`session.start`'s
+    /// `model`); `None` when it runs on its preset's model.
+    pub model: Option<String>,
 }
 
 /// Where session logs and registry rows live. The engine implements it over

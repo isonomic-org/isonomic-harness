@@ -67,6 +67,15 @@ impl Config {
             max_tool_output: 65_536,
         }
     }
+
+    /// The config with the session's picked model, if any, in place of the
+    /// preset's reply model (`session.start`'s `model`).
+    pub fn with_model(mut self, model: Option<&str>) -> Self {
+        if let Some(m) = model {
+            self.preset.model.id = m.to_owned();
+        }
+        self
+    }
 }
 
 /// One input to the loop.

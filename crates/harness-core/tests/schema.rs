@@ -100,3 +100,23 @@ fn the_json_schema_names_exactly_the_rust_types() {
         .collect();
     assert_eq!(blocks, harness_core::block::BLOCK_TYPES);
 }
+
+#[test]
+fn a_session_start_names_a_picked_model_only_when_there_is_one() {
+    // A log written before the field existed: no `model`, and it encodes
+    // back byte for byte.
+    let old = round_trip(
+        r#"{"session":"ses_1","seq":1,"at":1,"type":"session.start","class":"interactive","app":"chat","principal":{"kind":"user"},"preset":{"id":"chat","version":1},"profile":"standard"}"#,
+    );
+    match old.event {
+        Event::SessionStart(s) => assert_eq!(s.model, None),
+        other => panic!("{other:?}"),
+    }
+    let picked = round_trip(
+        r#"{"session":"ses_1","seq":1,"at":1,"type":"session.start","class":"interactive","app":"chat","principal":{"kind":"user"},"preset":{"id":"chat","version":2},"profile":"standard","model":"local:picked"}"#,
+    );
+    match picked.event {
+        Event::SessionStart(s) => assert_eq!(s.model.as_deref(), Some("local:picked")),
+        other => panic!("{other:?}"),
+    }
+}

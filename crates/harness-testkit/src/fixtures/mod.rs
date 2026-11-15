@@ -176,6 +176,7 @@ pub(crate) mod build {
                 },
                 parent: None,
                 profile: Some(profile),
+                model: None,
             },
             "local:small",
         )

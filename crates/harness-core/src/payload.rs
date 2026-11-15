@@ -35,6 +35,10 @@ pub struct SessionStart {
     /// The hardware profile, which picks the title and compaction paths.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub profile: Option<Profile>,
+    /// The model the person picked for this session, replacing the
+    /// preset's. Absent: the preset's model.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
 }
 
 /// Who a session acts for.

@@ -60,6 +60,7 @@ impl Driver {
             preset: cfg.preset.reference.clone(),
             parent: None,
             profile: Some(profile),
+            model: None,
         };
         let (s, outs) = Session::create(cfg, SessionId::from("ses_0001"), start, T0);
         let mut d = Driver {

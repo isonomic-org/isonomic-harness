@@ -30,6 +30,7 @@ fn summary(m: &SessionMeta, last_seq: Seq) -> SessionSummary {
         created_at: m.created_at,
         updated_at: m.updated_at,
         last_seq,
+        model: m.model.clone(),
     }
 }
 
@@ -124,19 +125,22 @@ impl Inner {
                     return Err(HostError::NotFound);
                 }
                 let events = self.history(&meta).await?;
-                let profile =
-                    events
-                        .iter()
-                        .filter(|e| &e.session == id)
-                        .find_map(|e| match &e.event {
-                            Event::SessionStart(s) => s.profile.clone(),
-                            _ => None,
-                        });
+                // The log says what the session runs on: profile and model.
+                let (profile, model) = events
+                    .iter()
+                    .filter(|e| &e.session == id)
+                    .find_map(|e| match &e.event {
+                        Event::SessionStart(s) => Some((s.profile.clone(), s.model.clone())),
+                        _ => None,
+                    })
+                    .unwrap_or_default();
                 let stored = self
                     .preset(&meta.app, &meta.preset.id, Some(meta.preset.version))
                     .or_else(|| self.preset(&meta.app, &PresetId::from("chat"), None));
                 let preset = stored.and_then(|p| p.preset).ok_or(HostError::NotFound)?;
-                let cfg = self.loop_config(&preset, profile, None);
+                let cfg = self
+                    .loop_config(&preset, profile, None)
+                    .with_model(model.as_deref());
                 let (lp, outs) = Session::resume(cfg.clone(), id.clone(), events, self.now());
                 let failed = lp.failed();
                 let slot = self.new_slot(meta, lp, cfg, false, &preset);
@@ -225,8 +229,12 @@ impl Host {
                 preset: p.reference.clone(),
                 parent: None,
                 profile: me.profile(),
+                model: opts.model.filter(|m| !m.trim().is_empty()),
             };
-            let cfg = me.loop_config(&p, start.profile.clone(), opts.limits);
+            let cfg = me
+                .loop_config(&p, start.profile.clone(), opts.limits)
+                .with_model(start.model.as_deref());
+            let model = start.model.clone();
             let (lp, outs) = Session::create(cfg.clone(), id.clone(), start, now);
             let meta = SessionMeta {
                 id: id.clone(),
@@ -239,6 +247,7 @@ impl Host {
                 forked_from: None,
                 created_at: now,
                 updated_at: now,
+                model,
             };
             let slot = me.new_slot(meta, lp, cfg, opts.location_opt_in, &p);
             lock(&slot.outbox).extend(outs);

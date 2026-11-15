@@ -69,13 +69,15 @@ pub enum Scope { Shell, App { app: AppId, kind: AppKind } }
 pub enum AppKind { FirstParty, View, ThirdParty }
 
 pub struct CreateOptions { pub title: Option<String>, pub location_opt_in: bool,
-    pub limits: Option<Limits> }               // may only tighten the preset's
+    pub limits: Option<Limits>,                // may only tighten the preset's
+    pub model: Option<String> }                // a picked model; None: the preset's
 pub struct SessionFilter { pub archived: Option<bool>, pub preset: Option<PresetId>,
     pub text: Option<String>, pub cursor: Option<String>, pub limit: u32 }
 pub struct SessionSummary { pub id: SessionId, pub app: AppId, pub class: SessionClass,
     pub preset: PresetRef, pub title: Option<String>, pub status: Status,
     pub archived: bool, pub forked_from: Option<(SessionId, Seq)>,
-    pub created_at: Millis, pub updated_at: Millis, pub last_seq: Seq }
+    pub created_at: Millis, pub updated_at: Millis, pub last_seq: Seq,
+    pub model: Option<String> }
 pub struct SessionSnapshot { pub summary: SessionSummary, pub turn_open: Option<TurnId>,
     pub approvals: Vec<ApprovalId>, pub questions: Vec<QuestionId>,
     pub awaiting_client: Vec<CallId> }
@@ -243,6 +245,12 @@ Differences from the first publication, all in spelling or additive:
   id, and `ScopeResolver::verify_user_action` takes the session before the
   approval. In harness-policy, `Approvals::get` and `Approvals::take` take
   `(session, id)`.
+- **A picked model.** `CreateOptions.model: Option<String>` replaces the
+  preset's reply model for that session (`None` or blank: the preset's).
+  It is recorded as `session.start`'s `model`, so resume and forks run on
+  it, and shown as `SessionSummary.model` and `SessionMeta.model`. The
+  host only carries the name; whether the caller may use that model is the
+  engine's check before it calls `create_session`.
 - **`purge(caller, app)`** names the app. An app may name only itself; the
   shell may name any app.
 - **`Subscription::next_update()`** and the `Update` enum: one call that

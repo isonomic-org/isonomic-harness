@@ -205,6 +205,7 @@ pub fn run() -> Result<(), String> {
         preset: preset.reference.clone(),
         parent: None,
         profile: Some(Profile::Intel),
+        model: None,
     };
     let id = SessionId::from("ses_smoke");
     let (mut s, _) = Session::create(cfg, id.clone(), start, now_ms());

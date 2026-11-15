@@ -53,7 +53,7 @@ Ids are opaque strings. Compare them; never parse them.
 
 | Type | Payload | Notes |
 | --- | --- | --- |
-| `session.start` | `class`, `app`, `principal {kind, id?}`, `preset {id, version}`, `parent? {session, call}`, `profile?` | Always seq 1. |
+| `session.start` | `class`, `app`, `principal {kind, id?}`, `preset {id, version}`, `parent? {session, call}`, `profile?`, `model?` | Always seq 1. `model` is the model the person picked for the session, replacing the preset's; absent, the preset's model. |
 | `session.status` | `status` (`active`, `awaiting_client`, `failed`), `reason?`, `calls?`, `deadline?` | Not in the brief's list; see below. |
 | `forked` | `from`, `at_seq`, `after_turn?`, `reason` (`edit`, `regenerate`, `branch`) | Seq 2 of a fork. History = parent events 1..`at_seq`, then this log. |
 | `system` | `origin` (`preset`, `context`, `notice`), `text`, `context? {date, time_zone, language, location?}`, `memory? [memory_ref]`, `memory_policy?` (`used`, `withheld`, `off`) | `text` is exactly what the model sees. On the context record, `memory` lists the revisions placed in context and `memory_policy` says whether memory was used. |
