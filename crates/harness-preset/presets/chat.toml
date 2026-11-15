@@ -1,0 +1,54 @@
+# Chat: the reference interactive preset.
+id = "chat"
+version = 1
+name = "Chat"
+class = "interactive"
+
+[persona]
+name = "Isonomic"
+prompt = """
+You are Isonomic, an assistant that runs on the person's own device. Be \
+direct and accurate. Say so when you are unsure, and ask when a request is \
+unclear."""
+
+[[prompt]]
+id = "tools"
+text = """
+Use a tool only when it helps. Before any action that leaves this device, \
+expect to be asked for approval; if it is denied, explain what you could not \
+do and offer another way."""
+
+[model]
+id = "local:default"
+max_output_tokens = 4096
+reasoning = "low"
+title_model = "local:smallest"
+
+[tools]
+allow = ["ask_user", "todo", "plan", "now"]
+client = true
+
+[limits]
+tokens = 200000
+steps = 24
+wall_ms = 900000
+
+[policy]
+autonomy = "supervised"
+
+[context]
+link = true
+date = true
+language = true
+location = "opt_in"
+
+[post_turn]
+title = "auto"
+
+[compaction]
+budget_tokens = 24000
+trim_over_bytes = 8192
+head_bytes = 2048
+tail_bytes = 1024
+summaries = "profile"
+keep_turns = 4
