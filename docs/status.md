@@ -2,6 +2,32 @@
 
 Newest first. Every deviation from the Milestone 0 brief is stated here.
 
+## 2026-11-15 — xtask replay, report and smoke
+
+- `cargo xtask replay [fixture]` decodes each fixture's JSONL generation,
+  resolves forks, and rebuilds every model request from the log alone. It
+  prints a digest of all of a fixture's requests: 32 requests across the
+  five committed fixtures and 1,609 in long-thread, with none failing.
+- `cargo xtask report` measures the gate budgets in a release build; a
+  debug xtask re-runs itself in release. Each figure is the median of five
+  runs, measured in this session's Linux sandbox:
+  - loop overhead: 0.095 ms per step (210 events, 35 steps);
+  - host overhead over MemoryHost: 0.138 ms per step;
+  - replaying 10,000 events (decode plus rebuild): 34.8 ms.
+  The budgets are for the Intel Mac; Omar has the command to run it there.
+- `cargo xtask smoke` runs one two-step turn with the `now` tool through
+  the loop against the llama.cpp server that isonomic-inference's local
+  provider launches (OpenAI-style chat completions on loopback, with a
+  bearer secret). It checks that the turn ends done, that there are two or
+  more steps, that the tool was called, and that replay rebuilt every
+  request. It passes against a stand-in server here.
+- Deviation: the smoke talks to the model server directly, not through
+  isonomic-inference's provider crate. That crate lives in another private
+  repository, and depending on it would tie this repository's CI to it. The
+  server, the model and the wire format are the same.
+- Gate 13 waits on one run on Omar's Mac: this sandbox has no model and no
+  network to download one.
+
 ## 2026-11-15 — harness-host and MemoryHost
 
 - The host feeds each session's sans-IO loop and owns every await. Outputs
