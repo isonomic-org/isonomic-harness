@@ -2,6 +2,26 @@
 
 Newest first. Every deviation from the Milestone 0 brief is stated here.
 
+## 2026-11-14 — Fixtures published
+
+- `harness-testkit`: manual clock, a deterministic recorder, the fixture
+  tools, the six fixtures and a JSON Schema checker that refuses keywords it
+  does not implement.
+- `cargo xtask fixtures` writes `fixtures/*.jsonl` and `MANIFEST.json`.
+  Tests check that the committed files and manifest match the generator,
+  that every line validates against the JSON Schema and round-trips byte for
+  byte, that every event type appears, that seqs have no gaps and that every
+  tool call has exactly one result.
+- Deviation: long-thread (10,000 events, about 2 MB) is generated, not
+  committed, because of the 20 KB file rule and the connector. Its size and
+  digest are in `MANIFEST.json` and checked by the tests.
+- Deviation: the fixtures are scripted with the recorder, not recorded from
+  harness-loop, which does not exist yet. They switch to recorded runs when
+  the loop lands.
+- The fixture data files (`fixtures/*.jsonl`, `MANIFEST.json`, `README.md`)
+  were committed in the browser as @QadmiriOmar so their bytes match the
+  generator exactly; code and docs went through the connector.
+
 ## 2026-11-14 — Schema v1 published (not yet frozen)
 
 - `harness-core`: ids, `SessionEvent` and every payload, blocks, open enums,
@@ -35,4 +55,4 @@ Newest first. Every deviation from the Milestone 0 brief is stated here.
   created in the browser as @QadmiriOmar.
 - Deviation: the connector cannot write `.github/workflows/` (the integration
   lacks the workflows permission), so `ci.yml` was committed in the browser
-  as @QadmiriOmar. Every other file goes through the connector.
+  as @QadmiriOmar. Code and docs go through the connector.
