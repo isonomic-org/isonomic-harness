@@ -1,0 +1,9 @@
+{"format":"isonomic.session-log","version":0}
+{"session":"ses_v0","seq":1,"ts":1794646800000,"kind":"session_start","class":"interactive","app":"chat","principal":{"kind":"user"},"preset":{"id":"chat","version":1}}
+{"session":"ses_v0","seq":2,"ts":1794646800000,"kind":"system","origin":"preset","text":"You are a helpful assistant."}
+{"session":"ses_v0","seq":3,"ts":1794646801000,"turn":"trn_v0","kind":"turn_start","cause":"user"}
+{"session":"ses_v0","seq":4,"ts":1794646801000,"turn":"trn_v0","kind":"user","text":"Hello there."}
+{"session":"ses_v0","seq":5,"ts":1794646801100,"turn":"trn_v0","step":"stp_v0","kind":"step_start","purpose":"reply","model":"local:small","params":{"max_output_tokens":512,"reasoning":"off"}}
+{"session":"ses_v0","seq":6,"ts":1794646802000,"turn":"trn_v0","step":"stp_v0","kind":"assistant","text":"Hi! How can I help?","stop":"end"}
+{"session":"ses_v0","seq":7,"ts":1794646802010,"turn":"trn_v0","step":"stp_v0","kind":"step_end","outcome":"complete","duration_ms":910}
+{"session":"ses_v0","seq":8,"ts":1794646802020,"turn":"trn_v0","kind":"turn_end","stop":"done","steps":1,"duration_ms":1020,"usage":{"input_tokens":20,"output_tokens":6}}
