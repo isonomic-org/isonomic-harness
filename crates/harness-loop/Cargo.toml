@@ -1,0 +1,23 @@
+[package]
+name = "harness-loop"
+description = "Isonomic Harness loop: the sans-IO turn and step driver with cancel, continue, retry, interceptors, the context link, post-turn steps and subagent activation."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+harness-core.workspace = true
+harness-log.workspace = true
+harness-tools.workspace = true
+harness-policy.workspace = true
+harness-preset.workspace = true
+harness-compact.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+harness-testkit.workspace = true
+
+[lints]
+workspace = true

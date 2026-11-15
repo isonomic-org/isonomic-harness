@@ -11,7 +11,7 @@ policy, presets, toolkit, compaction, host, report.
 | 3 | `docs/host-api.md` | `docs-host-api` | merged (#4) |
 | 4 | harness-log: SessionStore, JSONL generations, migrations, `derive_history()` | `log-v1` | merged (#5) |
 | 5 | harness-tools | `tools-v1` | #6 open; CI blocked (Actions billing) |
-| 6 | harness-loop | | |
+| 6 | harness-loop | `loop-v1` | pull request open, stacked on #9 |
 | 7 | harness-policy | `policy-v1` | pull request open, stacked on #6 |
 | 8 | harness-preset | `preset-v1` | pull request open, stacked on #7 |
 | 9 | harness-toolkit | | |
@@ -23,13 +23,13 @@ policy, presets, toolkit, compaction, host, report.
 
 | # | Item | State |
 | --- | --- | --- |
-| 1 | Replay reproduces every model request byte for byte, six fixtures | |
-| 2 | Cancel mid-stream and mid-tool; resume; continue | |
-| 3 | Fork at a turn boundary | |
-| 4 | Rejected input, pre_tool denial, approvals, questions, tokens | |
-| 5 | Three-flag rule, budget stop | |
-| 6 | Compaction trims first; replay exact | |
-| 7 | History rules, titles on both paths, context link logged | |
+| 1 | Replay reproduces every model request byte for byte, six fixtures | Loop tests: every request made equals its replay. Fixtures are script-recorded; re-recording through the loop is open |
+| 2 | Cancel mid-stream and mid-tool; resume; continue | passing locally (harness-loop tests) |
+| 3 | Fork at a turn boundary | passing locally (harness-loop tests) |
+| 4 | Rejected input, pre_tool denial, approvals, questions, tokens | loop and policy tests pass locally; token enforcement lands with harness-host |
+| 5 | Three-flag rule, budget stop | passing locally (harness-loop tests) |
+| 6 | Compaction trims first; replay exact | passing locally (harness-compact, harness-loop tests) |
+| 7 | History rules, titles on both paths, context link logged | passing locally (harness-log, harness-loop tests) |
 | 8 | v0 migrates to v1; future version refused | passing (harness-log tests) |
 | 9 | Schema v1 frozen; JSON Schema and six fixtures published | published, not yet frozen |
 | 10 | No-I/O allow-list; harness-core depends on serde only | passing in CI from Step 0 |
