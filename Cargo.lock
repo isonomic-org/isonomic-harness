@@ -20,6 +20,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "harness-host"
+version = "0.1.0"
+dependencies = [
+ "harness-core",
+ "harness-log",
+ "harness-loop",
+ "harness-policy",
+ "harness-preset",
+ "harness-toolkit",
+ "harness-tools",
+]
+
+[[package]]
 name = "harness-log"
 version = "0.1.0"
 dependencies = [
