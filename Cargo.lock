@@ -69,6 +69,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "harness-toolkit"
+version = "0.1.0"
+dependencies = [
+ "harness-core",
+ "harness-tools",
+]
+
+[[package]]
 name = "harness-tools"
 version = "0.1.0"
 dependencies = [
