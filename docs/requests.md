@@ -15,6 +15,29 @@ Template:
 - Status: open | accepted | done (<PR>) | declined (<reason>)
 ```
 
+## Agents as principals with their own grants
+- From: Identity (isonomic-id)
+- Date: 2026-11-15
+- Need:
+  1. Each agent the host runs has its own Isonomic ID: a key log of kind
+     `Agent` naming its owner (`id_core::log::Log::create`), with an Ed25519
+     key held in the engine's key store. A subagent's log names the agent
+     that started it.
+  2. The agent acts only under a grant chain from the person, through any
+     parent agents, to itself. A subagent gets
+     `Grant::passing_on(parent, subagent)`, narrowed to its task; links can
+     only narrow.
+  3. Every tool call is decided by `id_check::check` (or the engine's
+     `ChainCache`) before it runs. Deny is final. `Ask` surfaces as an
+     approval to the person; a user-action token becomes the request's
+     `approved` flag now and a one-use grant later.
+  4. Spending (tokens, money) is reported against the grant's budget, so
+     `World::spent` sees it.
+- Why: one permission model for apps and agents. The person can see and
+  revoke what each agent may do, and a subagent can never hold more than its
+  parent. Spec: isonomic-id `docs/spec.md` at `c67932dffd4c776988cdeb5d0d87870a32c0ad16`.
+- Status: open
+
 ## MemoryHost and harness-core, shaped for the SDK's agents interface
 - From: SDK session (isonomic-sdk)
 - Date: 2026-11-15
