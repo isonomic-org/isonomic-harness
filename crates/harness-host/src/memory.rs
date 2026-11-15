@@ -97,6 +97,14 @@ pub struct MemoryScopes {
     actions: Mutex<BTreeSet<(String, ApprovalId, UserActionToken)>>,
 }
 
+impl MemoryScopes {
+    /// Map a token the caller issued (an SDK testkit's `apps.grant`, say)
+    /// to a caller.
+    pub fn insert(&self, token: CapabilityToken, caller: Caller) {
+        lock(&self.tokens).insert(token, caller);
+    }
+}
+
 fn caller_key(c: &Caller) -> String {
     format!("{:?}", c.scope)
 }
@@ -307,6 +315,15 @@ impl MemoryHost {
         lock(&self.scopes.tokens).insert(t.clone(), Caller::app(app, kind));
         lock(&self.clients.connected).insert(AppId::from(app));
         t
+    }
+
+    /// Use a token issued elsewhere for `caller`; an app caller's app is
+    /// connected from the start.
+    pub fn insert_token(&self, token: CapabilityToken, caller: Caller) {
+        if let Some(app) = caller.scope.app() {
+            lock(&self.clients.connected).insert(app.clone());
+        }
+        self.scopes.insert(token, caller);
     }
 
     /// The shell's capability token.
