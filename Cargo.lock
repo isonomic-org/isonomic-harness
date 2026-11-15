@@ -30,6 +30,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "harness-loop"
+version = "0.1.0"
+dependencies = [
+ "harness-compact",
+ "harness-core",
+ "harness-log",
+ "harness-policy",
+ "harness-preset",
+ "harness-testkit",
+ "harness-tools",
+ "serde_json",
+]
+
+[[package]]
 name = "harness-policy"
 version = "0.1.0"
 dependencies = [
