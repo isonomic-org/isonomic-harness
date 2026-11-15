@@ -12,7 +12,7 @@
     "turn": { "$ref": "#/$defs/id" },
     "step": { "$ref": "#/$defs/id" },
     "type": {
-      "enum": ["session.start", "session.status", "forked", "system", "turn.start", "user", "step.start", "assistant", "attempt", "tool.call", "tool.result", "approval.request", "approval.decision", "question", "answer", "artifact", "title", "step.end", "turn.end", "compacted"]
+      "enum": ["session.start", "session.status", "forked", "system", "turn.start", "user", "step.start", "assistant", "attempt", "tool.call", "tool.result", "approval.request", "approval.decision", "question", "answer", "artifact", "title", "step.end", "turn.end", "compacted", "memory"]
     }
   },
   "oneOf": [
@@ -35,7 +35,8 @@
     { "$ref": "#/$defs/title" },
     { "$ref": "#/$defs/step.end" },
     { "$ref": "#/$defs/turn.end" },
-    { "$ref": "#/$defs/compacted" }
+    { "$ref": "#/$defs/compacted" },
+    { "$ref": "#/$defs/memory" }
   ],
   "$defs": {
     "id": { "type": "string", "minLength": 1, "description": "Opaque; compare, never parse." },
@@ -96,9 +97,16 @@
           "required": ["type", "target", "id", "label"],
           "properties": { "type": { "const": "mention" }, "target": { "type": "string" }, "id": { "type": "string" }, "label": { "type": "string" } }
         },
-        { "type": "object", "required": ["type", "value"], "properties": { "type": { "const": "json" }, "value": { "$ref": "#/$defs/any" } } }
+        { "type": "object", "required": ["type", "value"], "properties": { "type": { "const": "json" }, "value": { "$ref": "#/$defs/any" } } },
+        { "type": "object", "required": ["type", "id", "revision", "hash"], "properties": { "type": { "const": "memory_ref" }, "id": { "$ref": "#/$defs/id" }, "revision": { "type": "integer", "minimum": 1 }, "hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" } } }
       ]
     },
+    "memory_ref": {
+      "type": "object",
+      "required": ["id", "revision", "hash"],
+      "properties": { "id": { "$ref": "#/$defs/id" }, "revision": { "type": "integer", "minimum": 1 }, "hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" } }
+    },
+    "memory_policy": { "enum": ["used", "withheld", "off"] },
     "tool_spec": {
       "type": "object",
       "required": ["name", "description", "input_schema", "kind", "concurrency"],
@@ -176,7 +184,9 @@
           "type": "object",
           "required": ["date", "time_zone", "language"],
           "properties": { "date": { "type": "string" }, "time_zone": { "type": "string" }, "language": { "type": "string" }, "location": { "type": "string" } }
-        }
+        },
+        "memory": { "type": "array", "items": { "$ref": "#/$defs/memory_ref" } },
+        "memory_policy": { "$ref": "#/$defs/memory_policy" }
       }
     },
     "turn.start": {
@@ -213,6 +223,7 @@
             "options": { "type": "object" }
           }
         },
+        "memory_policy": { "$ref": "#/$defs/memory_policy" },
         "tools": { "type": "array", "items": { "$ref": "#/$defs/tool_spec" } }
       }
     },
@@ -401,6 +412,17 @@
         },
         "tokens_before": { "$ref": "#/$defs/uint" },
         "tokens_after": { "$ref": "#/$defs/uint" }
+      }
+    },
+    "memory": {
+      "type": "object",
+      "required": ["type", "op", "ref", "scope"],
+      "properties": {
+        "type": { "const": "memory" },
+        "op": { "enum": ["created", "revised", "deleted"] },
+        "ref": { "$ref": "#/$defs/memory_ref" },
+        "scope": { "enum": ["user", "app", "agent"] },
+        "evidence_seq": { "type": "integer", "minimum": 1 }
       }
     }
   }
