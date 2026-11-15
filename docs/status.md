@@ -2,6 +2,23 @@
 
 Newest first. Every deviation from the Milestone 0 brief is stated here.
 
+## 2026-11-15 — harness-preset
+
+- TOML presets (`docs/presets.md`): persona and prompt sections, model,
+  tools, limits, policy profile, class, context settings, the title step,
+  compaction and wake-up rules. `parse` never fails: invalid presets come
+  back with diagnostics (key path, or line and column) and no preset, so the
+  host keeps them listed. Unknown keys are errors.
+- Reference presets `chat`, `assistant-panel` and `test`, built in.
+- `title_path` by profile: heuristic on Intel, the small title model (or
+  the heuristic) on Low, the reply model elsewhere. `summaries_allowed`: not
+  on Intel unless the preset says `on`.
+- `check_ceiling`: an app's preset may only tighten the host's limits and
+  autonomy; no limit where the host has one counts as loosening.
+- Decision: harness-preset depends on harness-policy (for `Limits`,
+  `Autonomy`, `Policy`) and on the `toml` crate (parsing only); both are on
+  the allow-list. `docs/spec.md` updated.
+
 ## 2026-11-15 — harness-policy
 
 - Deviation (order): the brief orders loop before policy, presets and
