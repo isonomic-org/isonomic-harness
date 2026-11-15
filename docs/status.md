@@ -2,6 +2,16 @@
 
 Newest first. Every deviation from the Milestone 0 brief is stated here.
 
+## 2026-11-15 — continue after a title step
+
+- Fixed: a first turn whose reply was cut short (output limit) ends done, so
+  its title step runs inside the same turn. Continue then read the title's
+  `assistant` entry as the turn's reply and refused with "The reply is
+  complete." It now skips the entries of every step whose purpose is not
+  `reply` (title and summary). `harness-loop/tests/resume_reply.rs`
+  reproduces it.
+- No schema, type or signature change. Consumers only move their pin.
+
 ## 2026-11-15 — memory schema pieces (spec approved, §10)
 
 - "Spec: Isonomic memory" is approved. Its four §10 schema pieces are in
