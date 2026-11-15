@@ -4,6 +4,31 @@ Newest first. Every deviation from the Milestone 0 brief is stated here.
 Entries for the Milestone 0 crates (step 0 through harness-host) are in
 `status-milestone-0.md`.
 
+## 2026-11-15 — chat preset: no talk of tools when there are none
+
+From the engine's runs on a real model: the chat persona's talk of tools,
+approvals and asking back pushed small local models to refuse or ask to
+clarify plain requests (about 1 reply in 6 on the smallest).
+
+- The prompt section with the id `tools` is part of `system(preset)` only
+  while the session offers tools. A session created with no tools gets the
+  persona alone. When registering or removing tools changes that, the loop
+  records a new `system(preset)`; requests already use the latest one, so
+  replay is unchanged.
+- The chat persona no longer says "ask when a request is unclear". It now
+  says to take the most likely reading and answer it.
+- The built-in chat preset is version 2. A session stored with
+  `{chat, 1}` loads with the latest chat preset, as before.
+- The request context: the preset says nothing about where it sits. The
+  harness records it as its own `system(context)` and hands it to the model
+  client as a separate `Part::Context`, so the engine placing it at the end
+  of the system message conflicts with nothing here.
+- No change to the preset file format, the session event schema or any
+  signature. Added: `Preset::system_prompt_for(tools)` and `TOOLS_SECTION`.
+  `Preset::system_prompt()` is unchanged (every section).
+- Tests: `harness-loop/tests/preset_prompt.rs` and
+  `harness-preset/tests/preset.rs`.
+
 ## 2026-11-15 — review follow-up for #37: tests and notes
 
 Tests and documentation only; no code or contract change.

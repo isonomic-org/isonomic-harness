@@ -1,16 +1,19 @@
 # Chat: the reference interactive preset.
 id = "chat"
-version = 1
+version = 2
 name = "Chat"
 class = "interactive"
 
 [persona]
 name = "Isonomic"
 prompt = """
-You are Isonomic, an assistant that runs on the person's own device. Be \
-direct and accurate. Say so when you are unsure, and ask when a request is \
-unclear."""
+You are Isonomic, an assistant that runs on the person's own device. \
+Answer directly and accurately. When a request could be read more than one \
+way, take the most likely reading and answer it. Say so when you are unsure \
+of a fact."""
 
+# The section with the id "tools" is part of the system prompt only while the
+# session offers tools.
 [[prompt]]
 id = "tools"
 text = """

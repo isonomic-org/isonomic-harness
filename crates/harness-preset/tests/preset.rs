@@ -25,7 +25,7 @@ fn reference_presets_validate_cleanly() {
         );
         let p = parsed.preset.as_ref().unwrap();
         assert_eq!(p.reference.id, PresetId::from(*id));
-        assert_eq!(p.reference.version, 1);
+        assert!(p.reference.version >= 1);
         assert_eq!(p.class, SessionClass::Interactive);
         assert!(!p.system_prompt().is_empty());
     }
@@ -37,6 +37,15 @@ fn reference_presets_validate_cleanly() {
         .system_prompt()
         .contains("\n\nUse a tool only when it helps."));
     assert!(!chat.system_prompt().contains('\\'));
+    assert_eq!(chat.reference.version, 2);
+    // Without tools, the tools and approvals section is left out, and
+    // nothing in what remains speaks of tools, approvals or asking back.
+    let plain = chat.system_prompt_for(false);
+    assert_eq!(plain, chat.prompt[0].text.trim_end());
+    for word in ["tool", "approv", "ask", "unclear"] {
+        assert!(!plain.to_lowercase().contains(word), "{word} in {plain}");
+    }
+    assert_eq!(chat.system_prompt_for(true), chat.system_prompt());
     assert_eq!(chat.tools.allow, ["ask_user", "todo", "plan", "now"]);
     assert_eq!(chat.limits.steps, Some(24));
     assert_eq!(chat.policy.policy.autonomy, Autonomy::Supervised);

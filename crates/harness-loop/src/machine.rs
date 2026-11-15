@@ -98,8 +98,21 @@ impl Session {
         let mut s = Self::blank(cfg, id, start.app.clone(), Vec::new());
         s.now = now;
         s.emit(None, Event::SessionStart(start));
-        let text = s.cfg.preset.system_prompt();
-        s.emit(
+        let text = s.preset_prompt();
+        s.emit_preset_prompt(text);
+        let out = std::mem::take(&mut s.out);
+        (s, out)
+    }
+
+    /// The preset's system prompt for the tools offered now.
+    fn preset_prompt(&self) -> String {
+        self.cfg
+            .preset
+            .system_prompt_for(!self.cfg.tools.is_empty())
+    }
+
+    fn emit_preset_prompt(&mut self, text: String) {
+        self.emit(
             None,
             Event::System(System {
                 origin: SystemOrigin::Preset,
@@ -109,8 +122,21 @@ impl Session {
                 context: None,
             }),
         );
-        let out = std::mem::take(&mut s.out);
-        (s, out)
+    }
+
+    /// The offered tools changed. When that changes the preset's system
+    /// prompt (its tools section comes or goes), record the new one; later
+    /// requests use the latest `system(preset)`.
+    fn set_tools(&mut self, specs: Vec<ToolSpec>) {
+        self.cfg.tools = specs;
+        let current = self.events.iter().rev().find_map(|e| match &e.event {
+            Event::System(s) if s.origin == SystemOrigin::Preset => Some(&s.text),
+            _ => None,
+        });
+        let text = self.preset_prompt();
+        if current.is_some_and(|c| c != &text) {
+            self.emit_preset_prompt(text);
+        }
     }
 
     /// A fork: `parent` is the parent's resolved history through the fork
@@ -252,7 +278,7 @@ impl Session {
             Input::Answer(a) => self.answer(a),
             Input::ClientGone => self.client_gone(),
             Input::ClientBack => self.client_back(),
-            Input::Tools(specs) => self.cfg.tools = specs,
+            Input::Tools(specs) => self.set_tools(specs),
             Input::Rename(title) => {
                 self.titled = true;
                 self.emit(

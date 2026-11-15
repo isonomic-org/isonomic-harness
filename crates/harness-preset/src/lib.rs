@@ -61,6 +61,10 @@ pub fn parse(text: &str) -> Parsed {
     validate::parse(text)
 }
 
+/// The id of the prompt section that is included only while the session
+/// offers tools.
+pub const TOOLS_SECTION: &str = "tools";
+
 /// A named section of the system prompt.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PromptSection {
@@ -244,10 +248,23 @@ pub struct Preset {
 }
 
 impl Preset {
-    /// The composed system prompt: every section, in order, separated by a
-    /// blank line. This is the exact text of `system(preset)`.
+    /// Every prompt section, in order, separated by a blank line: the
+    /// system prompt of a session that offers tools.
     pub fn system_prompt(&self) -> String {
-        let parts: Vec<&str> = self.prompt.iter().map(|s| s.text.trim_end()).collect();
+        self.system_prompt_for(true)
+    }
+
+    /// The composed system prompt, the exact text of `system(preset)`. The
+    /// section with the id [`TOOLS_SECTION`] is left out when the session
+    /// offers no tools: talk of tools and approvals is noise there, and it
+    /// makes small models hedge.
+    pub fn system_prompt_for(&self, tools: bool) -> String {
+        let parts: Vec<&str> = self
+            .prompt
+            .iter()
+            .filter(|s| tools || s.id != TOOLS_SECTION)
+            .map(|s| s.text.trim_end())
+            .collect();
         parts.join("\n\n")
     }
 
