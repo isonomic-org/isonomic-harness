@@ -41,4 +41,4 @@ Template:
   testkit and one agents contract suite against MemoryHost. The SDK side is
   waiting on its own go-ahead; this asks for MemoryHost to be shaped for it
   in the meantime.
-- Status: open
+- Status: done (#27)

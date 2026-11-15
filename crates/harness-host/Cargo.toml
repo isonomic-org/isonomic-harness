@@ -1,0 +1,20 @@
+[package]
+name = "harness-host"
+description = "Isonomic Harness host: the session registry, isolation between apps, dispatch, policy enforcement, event fan-out, crash isolation, recovery and purge, over traits the engine implements; MemoryHost."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+harness-core.workspace = true
+harness-log.workspace = true
+harness-tools.workspace = true
+harness-policy.workspace = true
+harness-preset.workspace = true
+harness-loop.workspace = true
+harness-toolkit.workspace = true
+
+[lints]
+workspace = true

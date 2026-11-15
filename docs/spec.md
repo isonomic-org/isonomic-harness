@@ -17,7 +17,7 @@ preset format is in `presets.md`.
 | harness-preset | TOML presets and validation; chat, assistant-panel, test | core, policy, toml |
 | harness-policy | Approvals, decision tokens, three-flag tracker, budgets, autonomy | core |
 | harness-compact | Tool-result trimming, profile-gated summaries | core, log |
-| harness-host | Registry, isolation, dispatch, enforcement, fan-out, crash isolation, recovery, purge; engine traits; MemoryHost | all of the above |
+| harness-host | Registry, isolation, dispatch, enforcement, fan-out, crash isolation, recovery, purge; engine traits; MemoryHost | core, log, tools, policy, preset, loop, toolkit |
 | harness-testkit | Scripted model, fake tools, manual clock, recorded fixtures | core |
 
 No library crate has file, network or process access. The core crates are

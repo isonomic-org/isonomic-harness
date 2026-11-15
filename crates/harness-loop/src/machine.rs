@@ -136,19 +136,37 @@ impl Session {
         events: Vec<SessionEvent>,
         now: Millis,
     ) -> (Self, Vec<Output>) {
-        let app = events
-            .iter()
-            .filter(|e| e.session == id)
-            .find_map(|e| match &e.event {
-                Event::SessionStart(s) => Some(s.app.clone()),
-                _ => None,
-            })
-            .unwrap_or_else(|| AppId::from(""));
+        let app = app_of(&id, &events);
         let mut s = Self::resume_state(cfg, id, app, events);
         s.now = now;
-        s.seal_interrupted();
+        s.seal_interrupted(None);
         let out = std::mem::take(&mut s.out);
         (s, out)
+    }
+
+    /// Rebuild a session whose loop faulted (a panic): its open turn is
+    /// sealed as failed with `err`, and the session is marked failed.
+    pub fn fail(
+        cfg: Config,
+        id: SessionId,
+        events: Vec<SessionEvent>,
+        now: Millis,
+        err: ErrorInfo,
+    ) -> (Self, Vec<Output>) {
+        let app = app_of(&id, &events);
+        let mut s = Self::resume_state(cfg, id, app, events);
+        s.now = now;
+        s.seal_interrupted(Some(err.clone()));
+        if !s.failed {
+            s.mark_failed(&err);
+        }
+        let out = std::mem::take(&mut s.out);
+        (s, out)
+    }
+
+    /// Whether the session failed and takes no more input.
+    pub fn failed(&self) -> bool {
+        self.failed
     }
 
     fn resume_state(cfg: Config, id: SessionId, app: AppId, events: Vec<SessionEvent>) -> Self {
@@ -224,6 +242,7 @@ impl Session {
             Input::Continue => self.continue_turn(),
             Input::Cancel => self.stop(TurnStop::Cancelled, None),
             Input::BudgetStop(hit) => self.stop(TurnStop::Budget, Some(hit)),
+            Input::Fail(err) => self.fail_now(err),
             Input::Model(ev) => self.model_event(ev),
             Input::ModelError(err) => self.model_error(err),
             Input::Tool { call, output } => self.tool_output(call, output),
@@ -460,4 +479,15 @@ impl Session {
             );
         }
     }
+}
+
+fn app_of(id: &SessionId, events: &[SessionEvent]) -> AppId {
+    events
+        .iter()
+        .filter(|e| &e.session == id)
+        .find_map(|e| match &e.event {
+            Event::SessionStart(s) => Some(s.app.clone()),
+            _ => None,
+        })
+        .unwrap_or_else(|| AppId::from(""))
 }
