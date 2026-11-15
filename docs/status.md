@@ -4,6 +4,40 @@ Newest first. Every deviation from the Milestone 0 brief is stated here.
 Entries for the Milestone 0 crates (step 0 through harness-host) are in
 `status-milestone-0.md`.
 
+## 2026-11-15 — a picked model for a session
+
+Schema and host API change, labelled `needs-master`. For the model picker.
+
+- `CreateOptions.model: Option<String>`: when present (and not blank) it
+  replaces the preset's reply model for that session. Absent, everything
+  is as before.
+- Recorded as a new optional field, `session.start`'s `model`. It is
+  omitted when absent, so logs written before it decode, encode and digest
+  as before, and every fixture is byte for byte unchanged. Replay never
+  depended on it: each `step.start` already records its model.
+- Resume reads the model from the log (`Session::resume` and the host's
+  reload). A fork copies its parent's `session.start`, so it keeps the
+  model.
+- Visible as `SessionSummary.model` and `SessionMeta.model` (the override
+  only; `None` means the preset's model).
+- What runs on the picked model: reply steps, summary steps (they use the
+  reply model) and the title step where it uses the reply model. A preset's
+  own `title_model` (used on the Low profile) is not replaced.
+- The host carries the name and checks nothing; the engine owns the model
+  list and must check the name before it calls `create_session`.
+- Types that changed: `SessionStart` (+`model`), `SessionMeta` (+`model`),
+  `CreateOptions` (+`model`), `SessionSummary` (+`model`). Struct literals
+  need the new field. Added: `harness_loop::Config::with_model`.
+- Decision: `SCHEMA_REVISION` stays 0, as it did for the memory fields,
+  because schema v1 is not frozen yet.
+- Not built, design only: changing the model inside a session. A
+  `session.model` event `{model}` would be written between turns by a new
+  host call `set_model(caller, session, model)`, refused while a turn is
+  open. The loop would use it from the next step, resume would take the
+  latest one after `session.start`, and `SessionMeta.model` would follow.
+  Replay needs nothing, since each `step.start` records its model. A fork
+  would take the model in force at its fork point.
+
 ## 2026-11-15 — chat preset: no talk of tools when there are none
 
 From the engine's runs on a real model: the chat persona's talk of tools,

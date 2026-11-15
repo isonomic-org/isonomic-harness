@@ -95,6 +95,7 @@ impl Session {
         start: SessionStart,
         now: Millis,
     ) -> (Self, Vec<Output>) {
+        let cfg = cfg.with_model(start.model.as_deref());
         let mut s = Self::blank(cfg, id, start.app.clone(), Vec::new());
         s.now = now;
         s.emit(None, Event::SessionStart(start));
@@ -149,6 +150,7 @@ impl Session {
         forked: Forked,
         now: Millis,
     ) -> (Self, Vec<Output>) {
+        let cfg = cfg.with_model(start.model.as_deref());
         let mut s = Self::resume_state(cfg, id, start.app.clone(), parent.to_vec());
         s.now = now;
         s.emit(None, Event::SessionStart(start));
@@ -164,7 +166,7 @@ impl Session {
         events: Vec<SessionEvent>,
         now: Millis,
     ) -> (Self, Vec<Output>) {
-        let app = app_of(&id, &events);
+        let (app, cfg) = from_log(cfg, &id, &events);
         let mut s = Self::resume_state(cfg, id, app, events);
         s.now = now;
         s.seal_interrupted(None);
@@ -181,7 +183,7 @@ impl Session {
         now: Millis,
         err: ErrorInfo,
     ) -> (Self, Vec<Output>) {
-        let app = app_of(&id, &events);
+        let (app, cfg) = from_log(cfg, &id, &events);
         let mut s = Self::resume_state(cfg, id, app, events);
         s.now = now;
         s.seal_interrupted(Some(err.clone()));
@@ -522,13 +524,20 @@ impl Session {
     }
 }
 
-fn app_of(id: &SessionId, events: &[SessionEvent]) -> AppId {
+/// The session's own `session.start` in a resolved history.
+fn start_of<'a>(id: &SessionId, events: &'a [SessionEvent]) -> Option<&'a SessionStart> {
     events
         .iter()
         .filter(|e| &e.session == id)
         .find_map(|e| match &e.event {
-            Event::SessionStart(s) => Some(s.app.clone()),
+            Event::SessionStart(s) => Some(s),
             _ => None,
         })
-        .unwrap_or_else(|| AppId::from(""))
+}
+
+/// The owner app and the config with the model the log names.
+fn from_log(cfg: Config, id: &SessionId, events: &[SessionEvent]) -> (AppId, Config) {
+    let start = start_of(id, events);
+    let app = start.map_or_else(|| AppId::from(""), |s| s.app.clone());
+    (app, cfg.with_model(start.and_then(|s| s.model.as_deref())))
 }

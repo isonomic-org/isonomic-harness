@@ -148,7 +148,8 @@
           "required": ["session", "call"],
           "properties": { "session": { "$ref": "#/$defs/id" }, "call": { "$ref": "#/$defs/id" } }
         },
-        "profile": { "enum": ["intel", "low", "standard", "high"] }
+        "profile": { "enum": ["intel", "low", "standard", "high"] },
+        "model": { "type": "string", "minLength": 1 }
       }
     },
     "session.status": {

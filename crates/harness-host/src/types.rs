@@ -117,6 +117,11 @@ pub struct CreateOptions {
     pub location_opt_in: bool,
     /// Limits that may only tighten the preset's.
     pub limits: Option<Limits>,
+    /// The model the person picked: it replaces the preset's reply model
+    /// for this session and is recorded in `session.start`. `None`, or a
+    /// blank name, runs the preset's model. The host only carries the name;
+    /// whether the caller may use that model is the engine's check.
+    pub model: Option<String>,
 }
 
 /// `list_sessions` filter.
@@ -168,6 +173,9 @@ pub struct SessionSummary {
     pub updated_at: Millis,
     /// Its last seq (0 when not loaded since the host started).
     pub last_seq: Seq,
+    /// The model picked for it at creation; `None` when it runs on its
+    /// preset's model.
+    pub model: Option<String>,
 }
 
 /// `open_session`: the summary and what is pending.

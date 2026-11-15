@@ -55,6 +55,7 @@ fn loop_run() -> (f64, usize, usize) {
         preset: preset.reference.clone(),
         parent: None,
         profile: Some(Profile::Standard),
+        model: None,
     };
     let mut t: Millis = 1_794_646_800_000;
     let (mut s, _) = Session::create(cfg, SessionId::from("ses_report"), start, t);

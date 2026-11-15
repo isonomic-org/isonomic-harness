@@ -32,6 +32,7 @@ fn session(sizes: &[usize]) -> (Recorder, Ctx) {
             },
             parent: None,
             profile: Some(Profile::Standard),
+            model: None,
         },
         "local:small",
     );

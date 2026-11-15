@@ -145,3 +145,17 @@ fn streams_rebuild_each_reply() {
         }
     }
 }
+
+#[test]
+fn a_session_start_with_a_picked_model_validates() {
+    let schema: serde_json::Value = serde_json::from_str(JSON_SCHEMA).unwrap();
+    let line = |model: &str| -> serde_json::Value {
+        serde_json::from_str(&format!(
+            r#"{{"session":"ses_1","seq":1,"at":1,"type":"session.start","class":"interactive","app":"chat","principal":{{"kind":"user"}},"preset":{{"id":"chat","version":2}}{model}}}"#
+        ))
+        .unwrap()
+    };
+    assert!(schema_check::check(&schema, &line("")).is_ok());
+    assert!(schema_check::check(&schema, &line(r#","model":"local:picked""#)).is_ok());
+    assert!(schema_check::check(&schema, &line(r#","model":7"#)).is_err());
+}

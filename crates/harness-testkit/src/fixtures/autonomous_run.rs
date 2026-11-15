@@ -39,6 +39,7 @@ fn agent_as(
             },
             parent,
             profile: Some(Profile::Standard),
+            model: None,
         },
         "local:small",
     )

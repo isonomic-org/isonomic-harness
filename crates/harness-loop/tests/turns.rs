@@ -110,6 +110,7 @@ fn heuristic_title_on_intel_and_location_only_when_allowed() {
             preset: cfg.preset.reference.clone(),
             parent: None,
             profile: None,
+            model: None,
         };
         Session::create(cfg, SessionId::from("ses_0002"), start, T0).0
     };
@@ -383,6 +384,7 @@ fn a_fork_shares_the_prefix_and_is_independent() {
         preset: cfg.preset.reference.clone(),
         parent: None,
         profile: Some(Profile::Intel),
+        model: None,
     };
     let forked = Forked {
         from: SessionId::from("ses_0001"),
