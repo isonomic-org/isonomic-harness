@@ -11,19 +11,54 @@ const STOPPED: &str = "Stopped by the person.";
 impl Session {
     /// Cancel or a budget stop: seal everything outstanding, close the turn.
     pub(crate) fn stop(&mut self, stop: TurnStop, budget: Option<BudgetHit>) {
+        self.stop_with(stop, budget, None);
+    }
+
+    /// The host found a fault (a panic or a hang): seal the turn as failed,
+    /// mark the session failed, and take no more input.
+    pub(crate) fn fail_now(&mut self, err: ErrorInfo) {
+        if self.turn.is_some() {
+            self.stop_with(TurnStop::Failed, None, Some(err.clone()));
+        }
+        self.mark_failed(&err);
+    }
+
+    pub(crate) fn mark_failed(&mut self, err: &ErrorInfo) {
+        self.turn = None;
+        self.inbox.clear();
+        self.out.retain(|o| {
+            !matches!(
+                o,
+                Output::Request { .. } | Output::RunTool { .. } | Output::Idle
+            )
+        });
+        self.emit(
+            None,
+            Event::SessionStatus(SessionStatus {
+                status: Status::Failed,
+                reason: Some(err.message.clone()),
+                calls: Vec::new(),
+                deadline: None,
+            }),
+        );
+        self.failed = true;
+    }
+
+    fn stop_with(&mut self, stop: TurnStop, budget: Option<BudgetHit>, error: Option<ErrorInfo>) {
         let Some(t) = self.turn.as_mut() else {
             self.out.push(Output::Refused(Refusal::NotRunning));
             return;
         };
         let post = t.closed;
-        let reason = match &budget {
-            Some(_) => Some("A budget ran out.".to_string()),
-            None => Some(STOPPED.to_string()),
+        let reason = match (&budget, &error) {
+            (Some(_), _) => Some("A budget ran out.".to_string()),
+            (_, Some(e)) => Some(e.message.clone()),
+            _ => Some(STOPPED.to_string()),
         };
-        let outcome = if budget.is_some() {
-            StepOutcome::Budget
-        } else {
-            StepOutcome::Cancelled
+        let outcome = match (&budget, &error) {
+            (Some(_), _) => StepOutcome::Budget,
+            (_, Some(_)) => StepOutcome::Failed,
+            _ => StepOutcome::Cancelled,
         };
         match std::mem::replace(&mut t.phase, Phase::Between) {
             Phase::Between => {}
@@ -63,13 +98,17 @@ impl Session {
         }
         if post {
             self.turn = None;
-            return self.claim();
+            if error.is_none() {
+                self.claim();
+            }
+            return;
         }
-        self.end_turn(stop, reason, None, budget);
+        self.end_turn(stop, reason, error, budget);
     }
 
-    /// Seal a turn left open by a crash or restart.
-    pub(crate) fn seal_interrupted(&mut self) {
+    /// Seal a turn left open by a crash or restart: `interrupted`, or
+    /// `failed` with the error when a fault caused it.
+    pub(crate) fn seal_interrupted(&mut self, error: Option<ErrorInfo>) {
         let mut open_turn = None;
         let mut open_step = None;
         let mut open_calls: Vec<CallId> = Vec::new();
@@ -137,8 +176,14 @@ impl Session {
             self.turn = None;
             return;
         }
-        let reason = Some("The session restarted during this turn.".to_string());
-        self.end_turn(TurnStop::Interrupted, reason, None, None);
+        let (stop, reason) = match &error {
+            Some(e) => (TurnStop::Failed, e.message.clone()),
+            None => (
+                TurnStop::Interrupted,
+                "The session restarted during this turn.".to_string(),
+            ),
+        };
+        self.end_turn(stop, Some(reason), error, None);
         // Recovery never starts new work by itself.
         self.out.retain(|o| !matches!(o, Output::Request { .. }));
         if let Some(t) = &self.turn {

@@ -87,6 +87,9 @@ pub enum Input {
     Cancel,
     /// A budget kept by the host (per session or per app) ran out.
     BudgetStop(BudgetHit),
+    /// The host's watchdog or executor found a fault: seal the turn as
+    /// failed, write `session.status(failed)`, take no more input.
+    Fail(ErrorInfo),
     /// A streamed event for the step's request.
     Model(ModelEvent),
     /// The step's request failed.
