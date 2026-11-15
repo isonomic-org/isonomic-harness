@@ -11,6 +11,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "harness-log"
+version = "0.1.0"
+dependencies = [
+ "harness-core",
+ "harness-testkit",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "harness-testkit"
 version = "0.1.0"
 dependencies = [

@@ -2,6 +2,23 @@
 
 Newest first. Every deviation from the Milestone 0 brief is stated here.
 
+## 2026-11-15 — harness-log
+
+- `SessionStore` (async, runtime-agnostic, appends refuse gaps and
+  overwrites) with `MemoryStore`; registry rows (`SessionMeta`) live in the
+  same store.
+- JSONL generations: `encode`, `decode`; future versions refused; one-step
+  migrations on read (v0, the pre-release draft, to v1), never rewriting
+  the input.
+- `ModelRequest` with one canonical byte encoding, and `request_for`, which
+  rebuilds any step's request from the log alone (reply, title and summary
+  steps; forks through `resolve_fork`). Tested on every fixture: refusals,
+  attempts and reasoning never reach history; continue is a prefill that
+  extends the sealed reply; forks share only the prefix; tool results follow
+  call order; compaction trims and summarizes from its position on.
+- `harness_core::future`: boxed future and stream types and `fnv1a64`, std
+  only, so no crate names an async runtime.
+
 ## 2026-11-14 — Fixtures published
 
 - `harness-testkit`: manual clock, a deterministic recorder, the fixture
