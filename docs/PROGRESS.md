@@ -9,8 +9,8 @@ policy, presets, toolkit, compaction, host, report.
 | 1 | harness-core: ids, schema v1, JSON Schema | `core-schema-v1` | merged (#2) |
 | 2 | Six recorded fixtures, `cargo xtask fixtures` | `fixtures-v1` | merged (#3) |
 | 3 | `docs/host-api.md` | `docs-host-api` | merged (#4) |
-| 4 | harness-log: SessionStore, JSONL generations, migrations, `derive_history()` | `log-v1` | pull request open |
-| 5 | harness-tools | | |
+| 4 | harness-log: SessionStore, JSONL generations, migrations, `derive_history()` | `log-v1` | merged (#5) |
+| 5 | harness-tools | `tools-v1` | pull request open |
 | 6 | harness-loop | | |
 | 7 | harness-policy | | |
 | 8 | harness-preset | | |
