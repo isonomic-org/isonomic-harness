@@ -1,0 +1,17 @@
+[package]
+name = "harness-preset"
+description = "Isonomic Harness presets: TOML that composes prompt, tools, limits, policy, class, context and post-turn steps, with validation."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+harness-core.workspace = true
+harness-policy.workspace = true
+serde.workspace = true
+toml.workspace = true
+
+[lints]
+workspace = true
