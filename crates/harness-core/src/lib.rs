@@ -12,6 +12,7 @@ pub mod class;
 pub mod clock;
 pub mod error;
 pub mod event;
+pub mod future;
 pub mod ids;
 mod kinds;
 pub mod live;
