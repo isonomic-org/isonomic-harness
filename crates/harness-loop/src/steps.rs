@@ -64,6 +64,7 @@ impl Session {
                 }
                 let s = StepStart {
                     purpose: Purpose::Summary,
+                    memory_policy: None,
                     model: start.model.clone(),
                     params: Params {
                         max_output_tokens: 512,
@@ -95,6 +96,7 @@ impl Session {
         };
         StepStart {
             purpose: Purpose::Reply,
+            memory_policy: None,
             model: self.cfg.preset.model.id.clone(),
             params: self.cfg.preset.model.params(),
             tools,
