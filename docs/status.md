@@ -2,6 +2,19 @@
 
 Newest first. Every deviation from the Milestone 0 brief is stated here.
 
+## 2026-11-15 — live deltas wake a subscriber (#32)
+
+- Fixed: `Hub::delta` queued a `LiveDelta` on each feed without waking it,
+  so a task waiting on `Subscription::next()` saw nothing until the next
+  durable event. A queued delta now wakes the feed, as a durable event does.
+- `next()` still returns durable events only. It is safe to drop between
+  polls, so a waiter can poll it, drop it when pending and drain `deltas()`;
+  no timer is needed. A unit test in `harness-host/src/events.rs` covers it.
+- No type or signature change. Consumers only move their pin.
+- Not done here: the one call that awaits either kind
+  (`Subscription::next_update()`), which #32 also asks for. It adds to the
+  host API, so it goes in a `needs-master` pull request.
+
 ## 2026-11-15 — continue after a title step
 
 - Fixed: a first turn whose reply was cut short (output limit) ends done, so
