@@ -405,9 +405,19 @@ impl Session {
         if stop == TurnStop::Refused {
             return Err("A refusal cannot be continued.");
         }
+        // Title and summary steps run inside the turn but are not its reply.
+        let aside: Vec<&StepId> = self
+            .events
+            .iter()
+            .filter(|e| e.turn == turn)
+            .filter_map(|e| match &e.event {
+                Event::StepStart(s) if s.purpose != Purpose::Reply => e.step.as_ref(),
+                _ => None,
+            })
+            .collect();
         let mut sealed = None;
         for e in self.events.iter().rev() {
-            if e.turn != turn {
+            if e.turn != turn || e.step.as_ref().is_some_and(|s| aside.contains(&s)) {
                 continue;
             }
             match &e.event {
