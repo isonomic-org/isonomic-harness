@@ -10,6 +10,18 @@ fn setup() -> (MemoryHost, Caller, Caller) {
     (m, a, b)
 }
 
+#[test]
+fn tokens_issued_elsewhere_resolve() {
+    let m = MemoryHost::new();
+    let t = CapabilityToken("sdk-grant-1".into());
+    m.insert_token(t.clone(), Caller::app("notes", AppKind::FirstParty));
+    let c = m.caller(&t);
+    assert_eq!(c.owner(), AppId::from("notes"));
+    let s = create(&m, &c, "test");
+    m.block_on(m.host.send(&c, &s, text("Hi"))).unwrap();
+    assert_eq!(m.host.schema(), (SCHEMA_VERSION, SCHEMA_REVISION));
+}
+
 fn text(t: &str) -> Input {
     Input {
         content: vec![Block::text(t)],
