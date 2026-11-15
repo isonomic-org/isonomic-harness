@@ -56,10 +56,10 @@ Ids are opaque strings. Compare them; never parse them.
 | `session.start` | `class`, `app`, `principal {kind, id?}`, `preset {id, version}`, `parent? {session, call}`, `profile?` | Always seq 1. |
 | `session.status` | `status` (`active`, `awaiting_client`, `failed`), `reason?`, `calls?`, `deadline?` | Not in the brief's list; see below. |
 | `forked` | `from`, `at_seq`, `after_turn?`, `reason` (`edit`, `regenerate`, `branch`) | Seq 2 of a fork. History = parent events 1..`at_seq`, then this log. |
-| `system` | `origin` (`preset`, `context`, `notice`), `text`, `context? {date, time_zone, language, location?}` | `text` is exactly what the model sees. |
+| `system` | `origin` (`preset`, `context`, `notice`), `text`, `context? {date, time_zone, language, location?}`, `memory? [memory_ref]`, `memory_policy?` (`used`, `withheld`, `off`) | `text` is exactly what the model sees. On the context record, `memory` lists the revisions placed in context and `memory_policy` says whether memory was used. |
 | `turn.start` | `cause` (`user`, `continue`, `wake`, `delegate`), `wake? {source, id}` | |
 | `user` | `content` (blocks) | |
-| `step.start` | `purpose` (`reply`, `title`, `summary`), `model`, `params {max_output_tokens, reasoning, options?}`, `tools?` | `tools` appears when the tool set differs from the last step that had one. |
+| `step.start` | `purpose` (`reply`, `title`, `summary`), `model`, `params {max_output_tokens, reasoning, options?}`, `memory_policy?` (`used`, `withheld`, `off`), `tools?` | `tools` appears when the tool set differs from the last step that had one. `memory_policy` is the request record's memory policy. |
 | `assistant` | `content`, `stop` (`end`, `tool_use`, `max_tokens`, `cancelled`), `stream`, `usage?`, `continues?` | Tool calls follow as `tool.call`. |
 | `attempt` | `outcome` (`error`, `cancelled`, `refused`), `error?`, `content?`, `usage?`, `retry?`, `will_retry?` | Never model history. |
 | `tool.call` | `call`, `tool`, `kind` (`engine`, `client`, `cell`), `input`, `input_raw?`, `effects?`, `batch?`, `child?` | |
@@ -73,11 +73,15 @@ Ids are opaque strings. Compare them; never parse them.
 | `step.end` | `outcome`, `duration_ms`, `usage?` | |
 | `turn.end` | `stop` (`done`, `cancelled`, `failed`, `budget`, `rejected`, `refused`, `interrupted`), `steps`, `duration_ms`, `usage`, `reason?`, `error?`, `budget? {kind, limit, used}` | |
 | `compacted` | `through_seq`, `trimmed? [{call, original_bytes, head_bytes, tail_bytes}]`, `summary? {text, turns}`, `tokens_before`, `tokens_after` | |
+| `memory` | `op` (`created`, `revised`, `deleted`), `ref {id, revision, hash}`, `scope` (`user`, `app`, `agent`), `evidence_seq?` | One per change a session makes to the memory store. A reference, never the text. For `deleted`, `ref` is the revision that was current. |
 
 ### Blocks
 
 `text {text}`, `reasoning {text, elapsed_ms?}`, `attachment {blob, name,
-media_type, bytes, text?}`, `mention {target, id, label}`, `json {value}`.
+media_type, bytes, text?}`, `mention {target, id, label}`, `json {value}`,
+`memory_ref {id, revision, hash}` (`hash` is a salted SHA-256 over the
+store's salt and the revision's text, lowercase hex; the text stays in the
+memory store, and the salt keeps a short text from being guessed).
 
 ### The compact stream
 
@@ -139,10 +143,17 @@ A heuristic title is a lone `title` event after `turn.end`.
 - A fork's history is the parent's through `at_seq`, then its own.
 - The request's model, parameters and tools come from `step.start` (tools
   from the last `step.start` that carried them).
+- A `memory_ref` block reaches the request as a reference. A request that
+  carries one has the privacy tag `contains_memory` (`privacy` on the
+  request; absent when empty, so untagged requests encode as before),
+  unless its `step.start` records `memory_policy` `withheld` or `off`. The
+  model gateway routes on it. Resolving references to text, and the
+  `[memory deleted]` redaction for replay, come with the memory resolver.
 
 ## Decisions beyond the brief's list
 
-The brief lists eighteen durable events. Two more are needed:
+The brief lists eighteen durable events. Two more are needed (and the memory
+spec adds a third, below):
 
 - **`session.start`** makes every log self-describing (class, owner app,
   principal, preset, parent, hardware profile), so an exported generation
@@ -150,6 +161,16 @@ The brief lists eighteen durable events. Two more are needed:
 - **`session.status`** records *awaiting client* and *failed* in the log.
   The client-gone fixture and the crash-isolation gate need both, and the
   log is the truth.
+
+Four additive pieces come from the approved "Spec: Isonomic memory" (§10),
+added before v1 freezes so the memory tools can ship later with no schema
+change: the `memory_ref` block (id, revision, salted hash), the `memory`
+event, the `contains_memory` tag on model requests, and the memory policy
+field (`used`, `withheld`, `off`) on the context record and the request
+record. All optional fields are omitted when empty, so existing logs and
+request digests are unchanged. Until the memory work starts (spec §10: after
+the first end-to-end Chat turn in the desktop window), only the chat-basic
+fixture produces them.
 
 Refusals are `attempt` events with outcome `refused`: they are failed
 requests, never model history, and cannot be regenerated. A cancelled reply

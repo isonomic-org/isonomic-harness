@@ -2,6 +2,36 @@
 
 Newest first. Every deviation from the Milestone 0 brief is stated here.
 
+## 2026-11-15 — memory schema pieces (spec approved, §10)
+
+- "Spec: Isonomic memory" is approved. Its four §10 schema pieces are in
+  schema v1, labelled `needs-master` because they change the frozen schema:
+  - `memory_ref` block `{id, revision, hash}`; `hash` is a salted SHA-256
+    over the store's salt and the revision's text, lowercase hex;
+  - `memory` event `{op: created | revised | deleted, ref, scope: user | app
+    | agent, evidence_seq?}`;
+  - `ModelRequest.privacy` with `contains_memory`, set when a request
+    carries a `memory_ref`, unless its `step.start` withholds memory;
+  - `memory_policy` (`used`, `withheld`, `off`) on the context record
+    (`system`, beside `memory`, the revisions placed in context) and on the
+    request record (`step.start`).
+  Every new field is omitted when empty, so existing logs encode and digest
+  as before. The JSON Schema, `docs/schema.md`, the testkit validator (one
+  hex `pattern` form) and chat-basic (a saved-memory turn) are updated.
+- Types the SDK re-exports that changed: `Block` (+`MemoryRef`), `Event`
+  (+`Memory`), `System` (+`memory`, `memory_policy`), `StepStart`
+  (+`memory_policy`); new `MemoryRef`, `MemoryEvent`, `MemoryId`,
+  `MemoryOp`, `MemoryScope`, `MemoryPolicy`, `PrivacyTag`. In harness-log:
+  `Part::MemoryRef` and `ModelRequest.privacy`. Struct literals of `System`
+  and `StepStart` need the new fields (`memory: Vec::new()`,
+  `memory_policy: None`).
+- Decision: the fixture's tool is `memory_write`, because tool names here are
+  lowercase with `_`. The spec writes `memory.write`; the name is settled
+  when the tools ship.
+- The rest of the memory work is queued as issues #15–#20, one per pull
+  request. Per spec §10 it starts only after the first end-to-end Chat turn
+  runs in the desktop window on the Intel Mac (M-a).
+
 ## 2026-11-15 — xtask replay, report and smoke
 
 - `cargo xtask replay [fixture]` decodes each fixture's JSONL generation,
