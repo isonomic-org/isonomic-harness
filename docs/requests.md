@@ -35,7 +35,7 @@ Template:
      `World::spent` sees it.
 - Why: one permission model for apps and agents. The person can see and
   revoke what each agent may do, and a subagent can never hold more than its
-  parent. Spec: isonomic-id `docs/spec.md` at `c67932dffd4c776988cdeb5d0d87870a32c0ad16`.
+  parent. Spec: isonomic-id `docs/spec.md` at `d39a507e2902b0b5d3de3cbe096f278ba77a5396`.
 - Status: open
 
 ## MemoryHost and harness-core, shaped for the SDK's agents interface
