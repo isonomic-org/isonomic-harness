@@ -23,7 +23,7 @@ policy, presets, toolkit, compaction, host, report.
 
 | # | Item | State |
 | --- | --- | --- |
-| 1 | Replay reproduces every model request byte for byte, six fixtures | `cargo xtask replay` rebuilds all 1,641 requests; loop tests show each request made equals its replay. Re-recording the fixtures through the loop is open |
+| 1 | Replay reproduces every model request byte for byte, six fixtures | `cargo xtask replay` rebuilds all 1,643 requests; loop tests show each request made equals its replay. Re-recording the fixtures through the loop is open |
 | 2 | Cancel mid-stream and mid-tool; resume; continue | passing locally (harness-loop tests) |
 | 3 | Fork at a turn boundary | passing locally (harness-loop tests) |
 | 4 | Rejected input, pre_tool denial, approvals, questions, tokens | passing locally (harness-loop, harness-host tests) |
