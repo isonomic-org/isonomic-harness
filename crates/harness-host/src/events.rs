@@ -91,6 +91,32 @@ impl Hub {
     }
 }
 
+/// What a subscriber receives next: a durable event or a live delta.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Update {
+    /// A durable event, in `seq` order.
+    Event(SessionEvent),
+    /// A live delta (lossy; never stored).
+    Delta(LiveDelta),
+}
+
+/// What the live queues hold for a waiting subscriber.
+enum Ready {
+    Delta(LiveDelta),
+    Event(SessionEvent),
+    Lagging,
+    Closed,
+}
+
+/// The front delta, if every event before it has been delivered.
+fn due_delta(l: &mut Live, last: Seq) -> Option<LiveDelta> {
+    if l.deltas.front()?.after_seq <= last {
+        l.deltas.pop_front()
+    } else {
+        None
+    }
+}
+
 /// A subscription to one session: durable events with `seq` above where it
 /// started, with no gaps or duplicates, then live ones; and live deltas.
 pub struct Subscription {
@@ -130,63 +156,93 @@ impl Subscription {
     /// A live delta wakes the task waiting here, though this future stays
     /// pending. It can be dropped between polls without losing an event, so
     /// a waiter may poll it, drop it when pending, and drain `deltas()`.
+    /// [`Subscription::next_update`] does that in one call.
     #[allow(clippy::should_implement_trait)]
     pub fn next(&mut self) -> BoxFuture<'_, Option<SessionEvent>> {
         Box::pin(async move {
-            loop {
-                if let Some(e) = self.buffer.pop_front() {
-                    if e.seq <= self.last {
-                        continue;
-                    }
-                    if e.seq == self.last + 1 {
-                        self.last = e.seq;
-                        return Some(e);
-                    }
-                    self.buffer.clear();
-                    self.backfill = true;
-                }
-                if self.backfill {
-                    match self.store.read(&self.session, self.last, 256).await {
-                        Ok(got) if !got.is_empty() => {
-                            self.buffer.extend(got);
-                            continue;
-                        }
-                        _ => self.backfill = false,
-                    }
-                }
-                let feed = self.feed.clone();
-                let got = std::future::poll_fn(|cx| {
-                    let mut l = lock(&feed.live);
-                    if let Some(e) = l.events.pop_front() {
-                        return Poll::Ready(Some(Some(e)));
-                    }
-                    if l.lagging {
-                        l.lagging = false;
-                        return Poll::Ready(Some(None));
-                    }
-                    if l.closed {
-                        return Poll::Ready(None);
-                    }
-                    l.waker = Some(cx.waker().clone());
-                    Poll::Pending
-                })
-                .await;
-                match got {
-                    Some(Some(e)) => self.buffer.push_back(e),
-                    Some(None) => self.backfill = true,
-                    None => {
-                        // Closed: deliver what the store still has, then end.
-                        if let Ok(rest) = self.store.read(&self.session, self.last, 256).await {
-                            if !rest.is_empty() {
-                                self.buffer.extend(rest);
-                                continue;
-                            }
-                        }
-                        return None;
-                    }
-                }
+            match self.advance(false).await {
+                Some(Update::Event(e)) => Some(e),
+                _ => None,
             }
         })
+    }
+
+    /// The next durable event or live delta, whichever comes first; `None`
+    /// once the session is purged and every event is delivered.
+    ///
+    /// Durable events keep their order with no gaps or duplicates. Deltas
+    /// stay lossy. A delta is delivered after the event its `after_seq`
+    /// names and before the next one, so it never follows the `assistant`
+    /// event that replaces it. Safe to drop between polls.
+    pub fn next_update(&mut self) -> BoxFuture<'_, Option<Update>> {
+        Box::pin(self.advance(true))
+    }
+
+    async fn advance(&mut self, deltas: bool) -> Option<Update> {
+        loop {
+            if deltas {
+                if let Some(d) = due_delta(&mut lock(&self.feed.live), self.last) {
+                    return Some(Update::Delta(d));
+                }
+            }
+            if let Some(e) = self.buffer.pop_front() {
+                if e.seq <= self.last {
+                    continue;
+                }
+                if e.seq == self.last + 1 {
+                    self.last = e.seq;
+                    return Some(Update::Event(e));
+                }
+                self.buffer.clear();
+                self.backfill = true;
+            }
+            if self.backfill {
+                match self.store.read(&self.session, self.last, 256).await {
+                    Ok(got) if !got.is_empty() => {
+                        self.buffer.extend(got);
+                        continue;
+                    }
+                    _ => self.backfill = false,
+                }
+            }
+            let (feed, last) = (self.feed.clone(), self.last);
+            let got = std::future::poll_fn(|cx| {
+                let mut l = lock(&feed.live);
+                if deltas {
+                    if let Some(d) = due_delta(&mut l, last) {
+                        return Poll::Ready(Ready::Delta(d));
+                    }
+                }
+                if let Some(e) = l.events.pop_front() {
+                    return Poll::Ready(Ready::Event(e));
+                }
+                if l.lagging {
+                    l.lagging = false;
+                    return Poll::Ready(Ready::Lagging);
+                }
+                if l.closed {
+                    return Poll::Ready(Ready::Closed);
+                }
+                l.waker = Some(cx.waker().clone());
+                Poll::Pending
+            })
+            .await;
+            match got {
+                Ready::Delta(d) => return Some(Update::Delta(d)),
+                Ready::Event(e) => self.buffer.push_back(e),
+                Ready::Lagging => self.backfill = true,
+                Ready::Closed => {
+                    // Closed: deliver what the store still has, then end.
+                    if let Ok(rest) = self.store.read(&self.session, self.last, 256).await {
+                        if !rest.is_empty() {
+                            self.buffer.extend(rest);
+                            continue;
+                        }
+                    }
+                    return None;
+                }
+            }
+        }
     }
 
     /// Live deltas received so far (lossy; never stored).
