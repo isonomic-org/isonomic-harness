@@ -19,7 +19,11 @@ pub fn run() -> Result<(), String> {
             fixture.name,
             fixture.events.len(),
             text.len(),
-            if fixture.committed { "" } else { "  (not committed)" }
+            if fixture.committed {
+                ""
+            } else {
+                "  (not committed)"
+            }
         );
     }
     let manifest = harness_testkit::fixtures::manifest(&all);
