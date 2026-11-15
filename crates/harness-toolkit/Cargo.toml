@@ -1,0 +1,15 @@
+[package]
+name = "harness-toolkit"
+description = "Isonomic Harness standard tools: ask_user, todo, plan and now, with the service traits for later waves and their fakes."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+harness-core.workspace = true
+harness-tools.workspace = true
+
+[lints]
+workspace = true
