@@ -2,6 +2,21 @@
 
 Newest first. Every deviation from the Milestone 0 brief is stated here.
 
+## 2026-11-15 — harness-toolkit
+
+- Milestone 0 tools: `ask_user` (options as text or `{id, label}`; the
+  answer becomes the result), `todo` (add, done, undo, remove, list),
+  `plan` (steps and the step underway) and `now` (date and time in the
+  person's zone, from a `LocalZone` the engine implements; the tool only
+  formats). `toolkit(zone)` returns them ready to register.
+- `todo` and `plan` keep per-session state in memory; `replay` rebuilds it
+  from the session's own successful calls after a restart, so the log
+  stays the only truth.
+- Service traits with in-memory fakes, no tools yet: `ArtifactStore`
+  (wave 3), `Egress` (search and URL reading, wave 4), `MemoryStore` (after
+  its spec is approved; the narrowest shape: recall and remember per
+  owner) and `Connections` (later; handles, never secrets).
+
 ## 2026-11-15 — harness-loop
 
 - `Session` is a sans-IO state machine: `handle(now, Input) -> Vec<Output>`.
