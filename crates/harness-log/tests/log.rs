@@ -255,3 +255,54 @@ fn memory_store_appends_in_order_and_purges() {
     assert_eq!(block_on(store.purge(std::slice::from_ref(&s))).unwrap(), 28);
     assert_eq!(block_on(store.read(&s, 0, 1)), Err(StoreError::NotFound));
 }
+
+#[test]
+fn memory_refs_reach_requests_as_references_and_tag_them() {
+    let events = fixtures::chat_basic().events;
+    let reqs = all_requests(&events);
+    let tagged: Vec<&ModelRequest> = reqs
+        .iter()
+        .map(|(_, r)| r)
+        .filter(|r| r.privacy.contains(&PrivacyTag::ContainsMemory))
+        .collect();
+    // Only the reply after the memory was saved carries it.
+    assert_eq!(tagged.len(), 1);
+    let parts: Vec<&Part> = tagged[0]
+        .messages
+        .iter()
+        .flat_map(|m| &m.content)
+        .flat_map(|p| match p {
+            Part::ToolResult { content, .. } => content.iter().collect(),
+            other => vec![other],
+        })
+        .collect();
+    assert!(parts
+        .iter()
+        .any(|p| matches!(p, Part::MemoryRef { revision: 1, .. })));
+    // The memory's text is never in the log or the request: only the model's
+    // own tool input, which is part of the conversation, carries words.
+    let untagged = reqs.iter().filter(|(_, r)| r.privacy.is_empty()).count();
+    assert_eq!(untagged, reqs.len() - 1);
+    let bytes = String::from_utf8(tagged[0].bytes()).unwrap();
+    assert!(bytes.contains("\"privacy\":[\"contains_memory\"]"));
+    let plain = String::from_utf8(reqs[0].1.bytes()).unwrap();
+    assert!(
+        !plain.contains("privacy"),
+        "untagged requests encode as before"
+    );
+
+    // A request recorded with memory withheld carries no tag.
+    let mut withheld = events.clone();
+    for e in withheld.iter_mut() {
+        if let Event::StepStart(ss) = &mut e.event {
+            if ss.memory_policy == Some(MemoryPolicy::Used) {
+                ss.memory_policy = Some(MemoryPolicy::Withheld);
+            }
+        }
+    }
+    let still_tagged = all_requests(&withheld)
+        .into_iter()
+        .filter(|(_, r)| !r.privacy.is_empty())
+        .count();
+    assert_eq!(still_tagged, 0);
+}

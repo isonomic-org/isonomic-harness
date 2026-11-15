@@ -79,8 +79,9 @@ pub fn request_for(events: &[SessionEvent], step: &StepId) -> Result<ModelReques
         messages,
         tools: Vec::new(),
         prefill: false,
+        privacy: Vec::new(),
     };
-    Ok(match ss.purpose {
+    let mut req = match ss.purpose {
         Purpose::Title => base(TITLE_PROMPT.into(), title_messages(prefix)),
         Purpose::Summary => {
             let mut messages = history(prefix, turn);
@@ -105,6 +106,22 @@ pub fn request_for(events: &[SessionEvent], step: &StepId) -> Result<ModelReques
             req.prefill = is_continue_start(prefix, turn);
             req
         }
+    };
+    let withheld = matches!(
+        ss.memory_policy,
+        Some(MemoryPolicy::Withheld | MemoryPolicy::Off)
+    );
+    if !withheld && req.messages.iter().any(|m| contains_memory(&m.content)) {
+        req.privacy.push(PrivacyTag::ContainsMemory);
+    }
+    Ok(req)
+}
+
+fn contains_memory(parts: &[Part]) -> bool {
+    parts.iter().any(|p| match p {
+        Part::MemoryRef { .. } => true,
+        Part::ToolResult { content, .. } => contains_memory(content),
+        _ => false,
     })
 }
 
@@ -390,6 +407,11 @@ fn parts(blocks: &[Block]) -> Vec<Part> {
             }),
             Block::Json { value } => Some(Part::Json {
                 value: value.clone(),
+            }),
+            Block::MemoryRef(m) => Some(Part::MemoryRef {
+                id: m.id.clone(),
+                revision: m.revision,
+                hash: m.hash.clone(),
             }),
             Block::Reasoning { .. } | Block::Unknown(_) => None,
         })

@@ -94,6 +94,24 @@ pub fn search_notes() -> ToolSpec {
     t
 }
 
+/// Fake: save a memory. Its text is model output; the result and the
+/// `memory` event hold a reference only. (The tool's final name is settled
+/// when the memory tools ship.)
+pub fn memory_write() -> ToolSpec {
+    spec(
+        "memory_write",
+        "Save a short statement the person asked you to remember.",
+        vec![
+            ("text", "string"),
+            ("scope", "string"),
+            ("evidence", "object"),
+        ],
+        ToolKind::Engine,
+        vec![Effect::ReadsPrivateData],
+        Concurrency::Serial,
+    )
+}
+
 /// Fake: read one note.
 pub fn read_note() -> ToolSpec {
     let mut t = engine("read_note", "Read a note by id.", vec![("id", "string")]);

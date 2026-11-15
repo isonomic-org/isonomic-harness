@@ -334,3 +334,50 @@ open_enum!(
         Cost,
     }
 );
+
+open_enum!(
+    /// What a `memory` event records.
+    MemoryOp {
+        /// A new memory.
+        Created,
+        /// A new revision of an existing memory.
+        Revised,
+        /// The memory and all its revisions were deleted.
+        Deleted,
+    }
+);
+
+open_enum!(
+    /// Whose memory: about the user everywhere, one app's, or one agent's.
+    MemoryScope {
+        /// About the user, read by every app granted it.
+        User,
+        /// Private to one app (optionally split into containers).
+        App,
+        /// Private to one agent.
+        Agent,
+    }
+);
+
+open_enum!(
+    /// A privacy tag on a model request. The model gateway routes on it.
+    PrivacyTag {
+        /// The request contains memory; it goes to a remote provider only
+        /// when the person allowed memory with remote models.
+        ContainsMemory,
+    }
+);
+
+open_enum!(
+    /// Whether memory reached a request: recorded on the context record and
+    /// on each request's record, so replay rebuilds it exactly.
+    MemoryPolicy {
+        /// Memory was included.
+        Used,
+        /// Memory was withheld (a remote model without the person's
+        /// permission): references resolve to `[memory withheld]`.
+        Withheld,
+        /// Memory is off for this session, app or preset.
+        Off,
+    }
+);

@@ -1,6 +1,7 @@
 //! chat-basic: three prompts with streaming and reasoning, a model title, a
-//! stop then continue, a refusal, and two forks after the first turn (an
-//! edited prompt and a regenerated reply), so "1/3, 2/3, 3/3" has siblings.
+//! stop then continue, a refusal, a saved memory (a `memory_ref` result and
+//! a `memory` event), and two forks after the first turn (an edited prompt
+//! and a regenerated reply), so "1/3, 2/3, 3/3" has siblings.
 
 use super::build::*;
 use crate::recorder::Recorder;
@@ -108,6 +109,72 @@ pub fn record() -> Vec<SessionEvent> {
     r.attempt(&mut s, refused);
     r.end_step(&mut s, StepOutcome::Refused);
     r.end_turn(&mut s, TurnStop::Refused, None);
+
+    // Turn 5: the person asks to remember something. The log holds the
+    // reference; the text lives only in the memory store.
+    r.advance(25_000);
+    r.turn(&mut s, Cause::User, None);
+    let said = "Please remember that our club meets on the first Thursday of each month.";
+    r.user(&mut s, said);
+    let evidence = r.events.last().map(|e| e.seq).unwrap_or_default();
+    r.context(&mut s, None);
+    // The context record and each request's record carry the memory policy.
+    if let Some(Event::System(sys)) = r.events.last_mut().map(|e| &mut e.event) {
+        sys.memory_policy = Some(MemoryPolicy::Used);
+    }
+    r.step(&mut s, Purpose::Reply, None);
+    r.reply(&mut s, vec![], StopReason::ToolUse, None);
+    let memory = MemoryRef {
+        id: MemoryId::from("mem_0001"),
+        revision: 1,
+        // SHA-256 over the salt `fixture-salt-0001` and the text.
+        hash: "d255ba0e2222362cc72593db847be413155e92544d7a2e27bca7c6da9ba4cc68".into(),
+    };
+    let input = Value::object([
+        (
+            "text",
+            Value::from("The book club meets on the first Thursday of each month."),
+        ),
+        ("scope", Value::from("user")),
+        (
+            "evidence",
+            Value::object([
+                ("seq", Value::from(evidence)),
+                (
+                    "span",
+                    Value::from("our club meets on the first Thursday of each month"),
+                ),
+            ]),
+        ),
+    ]);
+    r.call(
+        &mut s,
+        call("cal_0001", &tools::memory_write(), input, None),
+    );
+    let saved = vec![Block::text("Saved."), Block::MemoryRef(memory.clone())];
+    r.result(&mut s, result("cal_0001", ToolOutcome::Ok, saved), 40);
+    r.emit(
+        &s,
+        Event::Memory(MemoryEvent {
+            op: MemoryOp::Created,
+            reference: memory,
+            scope: MemoryScope::User,
+            evidence_seq: Some(evidence),
+        }),
+    );
+    r.end_step(&mut s, StepOutcome::ToolCalls);
+    r.step(&mut s, Purpose::Reply, None);
+    if let Some(Event::StepStart(ss)) = r.events.last_mut().map(|e| &mut e.event) {
+        ss.memory_policy = Some(MemoryPolicy::Used);
+    }
+    r.reply(
+        &mut s,
+        text("Got it: the club meets on the first Thursday of each month. You can see or delete this in Settings, under Memory."),
+        StopReason::End,
+        None,
+    );
+    r.end_step(&mut s, StepOutcome::Complete);
+    r.end_turn(&mut s, TurnStop::Done, None);
 
     // Forks at the boundary after turn 1: an edited prompt, then a
     // regenerated reply to the original prompt.

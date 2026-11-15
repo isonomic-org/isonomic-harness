@@ -89,6 +89,7 @@ fn probe(cx: &Ctx) -> Probe {
         turn: cx.turn.clone().unwrap(),
         start: StepStart {
             purpose: Purpose::Reply,
+            memory_policy: None,
             model: "local:small".into(),
             params: Params {
                 max_output_tokens: 2048,
