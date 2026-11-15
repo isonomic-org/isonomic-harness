@@ -103,6 +103,8 @@ impl Session {
             None,
             Event::System(System {
                 origin: SystemOrigin::Preset,
+                memory: Vec::new(),
+                memory_policy: None,
                 text,
                 context: None,
             }),
@@ -338,6 +340,8 @@ impl Session {
                 None,
                 Event::System(System {
                     origin: SystemOrigin::Context,
+                    memory: Vec::new(),
+                    memory_policy: None,
                     text,
                     context: Some(kept),
                 }),
@@ -451,6 +455,7 @@ impl Session {
                 TitlePath::Model(model) => {
                     let start = StepStart {
                         purpose: Purpose::Title,
+                        memory_policy: None,
                         model,
                         params: Params {
                             max_output_tokens: 64,
