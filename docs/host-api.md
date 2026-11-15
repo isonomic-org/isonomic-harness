@@ -126,7 +126,8 @@ turn are not call errors: they are recorded in the log (`attempt`, a
   back to reading from the store until it catches up; the loop never waits
   for a subscriber.
 - `LiveDelta`s go on a separate lossy channel, dropped first under pressure.
-  The durable `assistant` event replaces them.
+  The durable `assistant` event replaces them. A queued delta wakes the
+  task waiting on `Subscription::next()`, as a durable event does.
 
 ## Crash isolation and recovery
 
@@ -208,7 +209,10 @@ Differences from the first publication, all in spelling or additive:
   version when `None`.
 - **`activity(caller, app: Option<AppId>)`.** Filters by app; shell only.
 - **`Subscription::next()`** returns the next durable event, or `None` after
-  a purge. `Subscription::deltas()` drains the lossy live deltas.
+  a purge. `Subscription::deltas()` drains the lossy live deltas. A delta
+  wakes the waiter but `next()` stays pending; the future can be dropped
+  between polls without losing an event, so a waiter polls it, drops it
+  when pending, and drains `deltas()`.
 - **`SessionStore::list_meta(owner)`** takes the owner only; the host applies
   `SessionFilter`.
 - **New trait `Locale`** (in `Deps`): the request context for a session

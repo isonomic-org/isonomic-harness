@@ -70,11 +70,13 @@ impl Hub {
     }
 
     /// Publish a live delta; dropped when a subscriber's delta queue is full.
+    /// A queued delta wakes the subscriber, as a durable event does.
     pub(crate) fn delta(&self, d: &LiveDelta) {
         for f in lock(&self.feeds).iter().filter_map(Weak::upgrade) {
             let mut l = lock(&f.live);
             if l.deltas.len() < f.delta_cap {
                 l.deltas.push_back(d.clone());
+                Feed::wake(&mut l);
             }
         }
     }
@@ -124,6 +126,10 @@ impl Subscription {
 
     /// The next durable event; `None` once the session is purged and every
     /// event is delivered. (Async, so not an `Iterator`.)
+    ///
+    /// A live delta wakes the task waiting here, though this future stays
+    /// pending. It can be dropped between polls without losing an event, so
+    /// a waiter may poll it, drop it when pending, and drain `deltas()`.
     #[allow(clippy::should_implement_trait)]
     pub fn next(&mut self) -> BoxFuture<'_, Option<SessionEvent>> {
         Box::pin(async move {
@@ -186,5 +192,62 @@ impl Subscription {
     /// Live deltas received so far (lossy; never stored).
     pub fn deltas(&mut self) -> Vec<LiveDelta> {
         lock(&self.feed.live).deltas.drain(..).collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use harness_log::MemoryStore;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::task::{Context, Wake};
+
+    struct Count(AtomicUsize);
+    impl Wake for Count {
+        fn wake(self: Arc<Self>) {
+            self.0.fetch_add(1, Ordering::SeqCst);
+        }
+    }
+
+    fn delta(text: &str) -> LiveDelta {
+        LiveDelta {
+            session: SessionId::from("ses_0001"),
+            turn: TurnId::from("trn_0001"),
+            step: StepId::from("stp_0001"),
+            after_seq: 0,
+            block: 0,
+            kind: DeltaKind::Text,
+            text: text.into(),
+        }
+    }
+
+    #[test]
+    fn a_delta_wakes_a_subscriber_waiting_on_next() {
+        let hub = Hub::default();
+        let store: Arc<dyn SessionStore> = Arc::new(MemoryStore::new());
+        let mut sub = Subscription::new(store, SessionId::from("ses_0001"), 0, hub.join(64));
+        let count = Arc::new(Count(AtomicUsize::new(0)));
+        let waker = Waker::from(count.clone());
+        let mut cx = Context::from_waker(&waker);
+
+        // Nothing durable yet: the subscriber waits.
+        let mut next = sub.next();
+        assert!(next.as_mut().poll(&mut cx).is_pending());
+        assert_eq!(count.0.load(Ordering::SeqCst), 0);
+
+        // A delta wakes it. There is still no durable event.
+        hub.delta(&delta("Hel"));
+        assert_eq!(count.0.load(Ordering::SeqCst), 1);
+        assert!(next.as_mut().poll(&mut cx).is_pending());
+        drop(next);
+        assert_eq!(sub.deltas(), [delta("Hel")]);
+
+        // Each later delta wakes it again once it waits again.
+        let mut next = sub.next();
+        assert!(next.as_mut().poll(&mut cx).is_pending());
+        hub.delta(&delta("lo"));
+        assert_eq!(count.0.load(Ordering::SeqCst), 2);
+        drop(next);
+        assert_eq!(sub.deltas(), [delta("lo")]);
     }
 }
