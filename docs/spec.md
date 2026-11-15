@@ -11,7 +11,7 @@ preset format is in `presets.md`.
 | --- | --- | --- |
 | harness-core | Ids, `SessionEvent` schema v1 and its JSON Schema, blocks, classes, errors, clock | serde |
 | harness-log | `SessionStore`, JSONL generations, migrations, `derive_history()` | core |
-| harness-loop | Turn and step driver, inbox, cancel, continue, retry, interceptors, context link, post-turn steps, subagent activation | core, log, tools, policy, preset, compact |
+| harness-loop | Turn and step driver, inbox, cancel, continue, retry, interceptors, context link, post-turn steps, subagent activation | core, log, tools, policy, preset, compact, serde_json |
 | harness-tools | Tool trait, kinds, scoped registry, guards, batches, client lifecycle | core |
 | harness-toolkit | ask-user, todo, plan, time and context; service traits with fakes | core, tools |
 | harness-preset | TOML presets and validation; chat, assistant-panel, test | core, policy, toml |
