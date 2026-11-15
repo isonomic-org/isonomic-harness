@@ -16,16 +16,18 @@ pub mod future;
 pub mod ids;
 mod kinds;
 pub mod live;
+mod memory;
 mod payload;
 pub mod value;
 
-pub use block::{Attachment, Block};
+pub use block::{Attachment, Block, MemoryRef};
 pub use class::SessionClass;
 pub use clock::Clock;
 pub use error::{Error, ErrorInfo};
 pub use event::*;
 pub use ids::*;
 pub use live::{DeltaKind, LiveDelta};
+pub use memory::MemoryEvent;
 pub use value::{Number, Value};
 
 use serde::{Deserialize, Serialize};
