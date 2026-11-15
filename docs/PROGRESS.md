@@ -10,9 +10,9 @@ policy, presets, toolkit, compaction, host, report.
 | 2 | Six recorded fixtures, `cargo xtask fixtures` | `fixtures-v1` | merged (#3) |
 | 3 | `docs/host-api.md` | `docs-host-api` | merged (#4) |
 | 4 | harness-log: SessionStore, JSONL generations, migrations, `derive_history()` | `log-v1` | merged (#5) |
-| 5 | harness-tools | `tools-v1` | pull request open |
+| 5 | harness-tools | `tools-v1` | #6 open; CI blocked (Actions billing) |
 | 6 | harness-loop | | |
-| 7 | harness-policy | | |
+| 7 | harness-policy | `policy-v1` | pull request open, stacked on #6 |
 | 8 | harness-preset | | |
 | 9 | harness-toolkit | | |
 | 10 | harness-compact | | |

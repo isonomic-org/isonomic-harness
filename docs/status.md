@@ -2,6 +2,33 @@
 
 Newest first. Every deviation from the Milestone 0 brief is stated here.
 
+## 2026-11-15 — harness-policy
+
+- Deviation (order): the brief orders loop before policy, presets and
+  compaction, but `docs/spec.md` has harness-loop depend on all three. I
+  build policy, presets and compaction first, then the loop.
+- Deviation (CI): from PR #6 on, no CI job starts. The run reports that
+  the organization's Actions payments failed or its spending limit must be
+  raised. Pull requests are stacked, each checked locally (fmt, clippy,
+  test, `xtask deps`), and none merges until a re-run is green.
+- `Caller` (shell, or an app with its kind), `may_decide`: the shell
+  decides any approval; a first-party app only its own sessions' (another
+  app's approval answers as not found); Views and third-party code never;
+  every decision needs a verified user-action token.
+- `Policy::evaluate`: deny by default for *acts outward* and *executes
+  code*; the three-flag rule (private data and untrusted content both
+  present: every outward action asks, pre-approval or not); `Flags` are
+  sticky; Cell tools are refused. Autonomy levels: strict (any effect
+  asks), supervised (the default), trusted (outward runs unless the
+  three-flag rule applies; code still asks).
+- `interpret`: a clear yes or no is the person's decision; anything else is
+  a denial with basis `ambiguous`, keeping the answer as given.
+- `Limits` (tokens, steps, wall time, cost; an app may only tighten) and
+  `Meter`, checked before each step so a turn stops cleanly between steps;
+  the host keeps a meter per turn, session and app.
+- `Approvals`: the host's pending approvals, listed per owner, expired
+  (denial with basis `timeout`) and dropped with their sessions.
+
 ## 2026-11-15 — harness-tools
 
 - `Tool` (engine tools, async, runtime-agnostic), `ToolOutput` (done, or
