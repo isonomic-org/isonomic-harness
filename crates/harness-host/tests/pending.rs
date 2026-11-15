@@ -225,3 +225,163 @@ fn results_and_answers_name_a_session_the_caller_owns() {
         Err(HostError::NotFound)
     );
 }
+
+/// One turn that asks the person a question, leaving it open.
+fn ask(m: &MemoryHost, c: &Caller, s: &SessionId) {
+    m.model
+        .calls(&[("ask_user", "{\"prompt\":\"Which one?\"}")]);
+    m.block_on(m.host.send(c, s, text("Ask me."))).unwrap();
+}
+
+fn count(m: &MemoryHost, s: &SessionId, kind: &str) -> usize {
+    m.log(s)
+        .iter()
+        .filter(|e| e.event.type_name() == kind)
+        .count()
+}
+
+#[test]
+fn two_sessions_with_the_same_question_id_stay_apart() {
+    let m = MemoryHost::new();
+    let a = m.caller(&m.app_token("chat", AppKind::FirstParty));
+    let (s1, s2) = (create(&m, &a), create(&m, &a));
+    ask(&m, &a, &s1);
+    ask(&m, &a, &s2);
+    let open = |s: &SessionId| m.block_on(m.host.open_session(&a, s)).unwrap().questions;
+    let id = open(&s1)[0].clone();
+    assert_eq!(open(&s2), [id.clone()]);
+
+    let answer = AnswerInput {
+        selected: Vec::new(),
+        text: Some("The first.".into()),
+        skipped: false,
+    };
+    m.model.text("Noted.");
+    m.block_on(m.host.answer_question(&a, &s2, &id, answer.clone()))
+        .unwrap();
+    assert_eq!((count(&m, &s1, "answer"), count(&m, &s2, "answer")), (0, 1));
+    // The other session's question is still open, and takes its own answer.
+    assert_eq!(open(&s1), [id.clone()]);
+    assert!(open(&s2).is_empty());
+    assert_eq!(
+        m.block_on(m.host.answer_question(&a, &s2, &id, answer.clone())),
+        Err(HostError::NotFound)
+    );
+    m.model.text("Noted here too.");
+    m.block_on(m.host.answer_question(&a, &s1, &id, answer))
+        .unwrap();
+    assert_eq!(count(&m, &s1, "answer"), 1);
+}
+
+/// A session with one finished turn, and a fork of it after that turn.
+fn parent_and_fork(m: &MemoryHost, c: &Caller) -> (SessionId, SessionId) {
+    let parent = create(m, c);
+    m.model.text("Blue.");
+    m.model.text("Colors");
+    m.block_on(m.host.send(c, &parent, text("A color?")))
+        .unwrap();
+    let turn = m.log(&parent).iter().find_map(|e| e.turn.clone()).unwrap();
+    let at = ForkPoint::AfterTurn(turn);
+    let child = m
+        .block_on(m.host.fork_session(c, &parent, at, ForkReason::Branch))
+        .unwrap();
+    (parent, child)
+}
+
+#[test]
+fn a_parent_and_its_fork_with_the_same_approval_id_stay_apart() {
+    let m = MemoryHost::new();
+    let a = m.caller(&m.app_token("chat", AppKind::FirstParty));
+    let shell = m.caller(&m.shell_token());
+    let (parent, child) = parent_and_fork(&m, &a);
+    // The fork continues the parent's counters, so both mint the same id.
+    call(
+        &m,
+        &a,
+        &parent,
+        client_tool("post", vec![Effect::ActsOutward]),
+    );
+    call(
+        &m,
+        &a,
+        &child,
+        client_tool("post", vec![Effect::ActsOutward]),
+    );
+    let all = m.block_on(m.host.list_approvals(&a)).unwrap();
+    assert_eq!(all.len(), 2);
+    let id = all[0].request.approval.clone();
+    assert_eq!(all[1].request.approval, id);
+
+    let token = m.user_action(&shell, &child, &id);
+    m.model.text("Not posted.");
+    m.block_on(
+        m.host
+            .decide_approval(&shell, &child, &id, DecisionInput::Deny, Some(token)),
+    )
+    .unwrap();
+    assert_eq!((decisions(&m, &parent), decisions(&m, &child)), (0, 1));
+    let left = m.block_on(m.host.list_approvals(&a)).unwrap();
+    assert_eq!(left.len(), 1);
+    assert_eq!(left[0].session, parent);
+}
+
+#[test]
+fn a_parent_and_its_fork_with_the_same_call_id_stay_apart() {
+    let m = MemoryHost::new();
+    let a = m.caller(&m.app_token("chat", AppKind::FirstParty));
+    let (parent, child) = parent_and_fork(&m, &a);
+    call(&m, &a, &parent, client_tool("insert_block", vec![]));
+    call(&m, &a, &child, client_tool("insert_block", vec![]));
+    let invoked = m.clients.invoked.lock().unwrap().clone();
+    assert_eq!(invoked.len(), 2);
+    let id = invoked[0].2.call.clone();
+    assert_eq!(invoked[1].2.call, id);
+
+    m.model.text("Done in the fork.");
+    m.block_on(m.host.client_tool_result(
+        &a,
+        &child,
+        &id,
+        ClientOutcome::Ok(vec![Block::text("Inserted.")]),
+    ))
+    .unwrap();
+    assert_eq!(
+        (
+            count(&m, &parent, "tool.result"),
+            count(&m, &child, "tool.result")
+        ),
+        (0, 1)
+    );
+    let waiting = |s: &SessionId| {
+        m.block_on(m.host.open_session(&a, s))
+            .unwrap()
+            .turn_open
+            .is_some()
+    };
+    assert!(waiting(&parent));
+    assert!(!waiting(&child));
+}
+
+#[test]
+fn a_result_for_a_call_never_issued_is_dropped_and_audited() {
+    let m = MemoryHost::new();
+    let a = m.caller(&m.app_token("chat", AppKind::FirstParty));
+    let s = create(&m, &a);
+    let before = m.log(&s).len();
+    let bogus = CallId::from("cal_9999");
+    let outcome = ClientOutcome::Ok(vec![Block::text("Nothing asked for this.")]);
+    assert_eq!(
+        m.block_on(m.host.client_tool_result(&a, &s, &bogus, outcome)),
+        Ok(())
+    );
+    assert_eq!(m.log(&s).len(), before);
+    let shell = m.caller(&m.shell_token());
+    let late: Vec<_> = m
+        .block_on(m.host.activity(&shell, None))
+        .unwrap()
+        .into_iter()
+        .filter(|r| r.kind == "tool.result.late")
+        .collect();
+    assert_eq!(late.len(), 1);
+    assert_eq!((&late[0].session, &late[0].call), (&s, &Some(bogus)));
+}
