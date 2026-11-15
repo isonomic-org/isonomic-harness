@@ -17,13 +17,13 @@ policy, presets, toolkit, compaction, host, report.
 | 9 | harness-toolkit | `toolkit-v1` | pull request open, stacked on #10 |
 | 10 | harness-compact | `compact-v1` | pull request open, stacked on #8 |
 | 11 | harness-host and MemoryHost | `host-v1` | pull request open, stacked on #11 |
-| 12 | `cargo xtask report`, `smoke`; the gate | | |
+| 12 | `cargo xtask replay`, `report`, `smoke`; the gate | `report-v1` | pull request open, stacked on #13 |
 
 ## Gate
 
 | # | Item | State |
 | --- | --- | --- |
-| 1 | Replay reproduces every model request byte for byte, six fixtures | Loop tests: every request made equals its replay. Fixtures are script-recorded; re-recording through the loop is open |
+| 1 | Replay reproduces every model request byte for byte, six fixtures | `cargo xtask replay` rebuilds all 1,641 requests; loop tests show each request made equals its replay. Re-recording the fixtures through the loop is open |
 | 2 | Cancel mid-stream and mid-tool; resume; continue | passing locally (harness-loop tests) |
 | 3 | Fork at a turn boundary | passing locally (harness-loop tests) |
 | 4 | Rejected input, pre_tool denial, approvals, questions, tokens | passing locally (harness-loop, harness-host tests) |
@@ -34,5 +34,5 @@ policy, presets, toolkit, compaction, host, report.
 | 9 | Schema v1 frozen; JSON Schema and six fixtures published | published, not yet frozen |
 | 10 | No-I/O allow-list; harness-core depends on serde only | passing in CI from Step 0 |
 | 11 | MemoryHost isolation, purge, client-gone, crash isolation, fan-out | passing locally (harness-host tests; slow subscriber measured) |
-| 12 | `cargo xtask report` budgets | |
-| 13 | Smoke test on a local model | |
+| 12 | `cargo xtask report` budgets | passing locally: 0.095 and 0.138 ms per step, 34.8 ms replay (sandbox; Intel Mac run pending) |
+| 13 | Smoke test on a local model | `cargo xtask smoke` passes against a stand-in server; the real run is on Omar's Mac |
