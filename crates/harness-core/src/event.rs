@@ -5,6 +5,7 @@
 //! `turn`, `step`), then `type`, then the payload fields.
 
 use crate::ids::{Millis, Seq, SessionId, StepId, TurnId};
+use crate::memory::MemoryEvent;
 use crate::value::Value;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::BTreeMap;
@@ -96,6 +97,9 @@ pub enum Event {
     /// Older content was trimmed or summarized.
     #[serde(rename = "compacted")]
     Compacted(Compacted),
+    /// The session created, revised or deleted a memory (by reference).
+    #[serde(rename = "memory")]
+    Memory(MemoryEvent),
     /// An event type from a newer schema revision. Render it generically.
     #[serde(untagged)]
     Unknown(UnknownEvent),
@@ -123,6 +127,7 @@ pub const EVENT_TYPES: &[&str] = &[
     "step.end",
     "turn.end",
     "compacted",
+    "memory",
 ];
 
 impl Event {
@@ -149,6 +154,7 @@ impl Event {
             Event::StepEnd(_) => "step.end",
             Event::TurnEnd(_) => "turn.end",
             Event::Compacted(_) => "compacted",
+            Event::Memory(_) => "memory",
             Event::Unknown(u) => &u.kind.0,
         }
     }

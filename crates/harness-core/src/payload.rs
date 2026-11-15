@@ -1,7 +1,7 @@
 //! Event payloads. Optional fields are left out when empty, so a log carries
 //! only what happened.
 
-use crate::block::Block;
+use crate::block::{Block, MemoryRef};
 use crate::class::SessionClass;
 use crate::error::{is_false, ErrorInfo};
 use crate::ids::*;
@@ -106,6 +106,12 @@ pub struct System {
     /// For context: what the context link added, structured.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub context: Option<RequestContext>,
+    /// For context: the session's memory block, by reference.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub memory: Vec<MemoryRef>,
+    /// For context: whether memory was used, withheld or off.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub memory_policy: Option<MemoryPolicy>,
 }
 
 /// What the context link adds to a turn.
@@ -160,6 +166,9 @@ pub struct StepStart {
     /// The tool set, present when it differs from the last step that had one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tools: Option<Vec<ToolSpec>>,
+    /// Whether memory reached this request: used, withheld or off.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub memory_policy: Option<MemoryPolicy>,
 }
 
 /// Request parameters.

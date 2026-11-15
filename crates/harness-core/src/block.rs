@@ -1,6 +1,6 @@
 //! Content blocks: the parts of user input, model replies and tool results.
 
-use crate::ids::BlobId;
+use crate::ids::{BlobId, MemoryId};
 use crate::value::Value;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::BTreeMap;
@@ -40,6 +40,10 @@ pub enum Block {
         /// The data.
         value: Value,
     },
+    /// A reference to a memory revision. The text stays in the memory store
+    /// and is resolved when a request is built, so deleting a memory really
+    /// removes it.
+    MemoryRef(MemoryRef),
     /// A block type from a newer schema revision.
     #[serde(untagged)]
     Unknown(UnknownBlock),
@@ -69,8 +73,28 @@ pub struct Attachment {
     pub text: Option<String>,
 }
 
+/// A memory revision, by reference (id, revision, salted hash).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MemoryRef {
+    /// The memory.
+    pub id: MemoryId,
+    /// Its revision, from 1.
+    pub revision: u32,
+    /// The revision's salted hash: SHA-256 over its random salt and its
+    /// text, in lowercase hex. Deleting the revision deletes the salt, so a
+    /// hash left in a log can't confirm a guess at the deleted text.
+    pub hash: String,
+}
+
 /// The block type names schema v1 defines.
-pub const BLOCK_TYPES: &[&str] = &["text", "reasoning", "attachment", "mention", "json"];
+pub const BLOCK_TYPES: &[&str] = &[
+    "text",
+    "reasoning",
+    "attachment",
+    "mention",
+    "json",
+    "memory_ref",
+];
 
 /// A block whose type this build does not know.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

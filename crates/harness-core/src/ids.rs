@@ -80,6 +80,10 @@ id!(
     AppId
 );
 id!(
+    /// A memory in the engine's memory store; its text lives only there.
+    MemoryId
+);
+id!(
     /// A preset.
     PresetId
 );
