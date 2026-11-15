@@ -119,7 +119,7 @@ fn apps_cannot_reach_each_others_sessions_presets_or_artifacts() {
         .is_err());
 
     // B's purge leaves A's session alone.
-    let r = m.block_on(m.host.purge(&b)).unwrap();
+    let r = m.block_on(m.host.purge(&b, &b.owner())).unwrap();
     assert_eq!(r.sessions, 0);
     assert!(!m.log(&s).is_empty());
 }
@@ -179,34 +179,38 @@ fn approvals_need_a_user_action_and_the_right_decider() {
     // No token: refused, nothing written.
     let before = m.log(&s).len();
     assert_eq!(
-        m.block_on(m.host.decide_approval(&a, &id, DecisionInput::Allow, None)),
+        m.block_on(
+            m.host
+                .decide_approval(&a, &s, &id, DecisionInput::Allow, None)
+        ),
         Err(HostError::MissingUserAction)
     );
     let forged = UserActionToken("ua:forged".into());
     assert_eq!(
         m.block_on(
             m.host
-                .decide_approval(&a, &id, DecisionInput::Allow, Some(forged))
+                .decide_approval(&a, &s, &id, DecisionInput::Allow, Some(forged))
         ),
         Err(HostError::MissingUserAction)
     );
     assert_eq!(m.log(&s).len(), before);
     // A View of the same app may not decide.
     let view = Caller::app("chat", AppKind::View);
-    let t = m.user_action(&view, &id);
+    let t = m.user_action(&view, &s, &id);
     assert_eq!(
         m.block_on(
             m.host
-                .decide_approval(&view, &id, DecisionInput::Allow, Some(t))
+                .decide_approval(&view, &s, &id, DecisionInput::Allow, Some(t))
         ),
         Err(HostError::NotAllowedToDecide)
     );
     // The shell decides, with an ambiguous answer: a denial.
     let shell = m.caller(&m.shell_token());
-    let t = m.user_action(&shell, &id);
+    let t = m.user_action(&shell, &s, &id);
     m.model.text("I didn't post it.");
     m.block_on(m.host.decide_approval(
         &shell,
+        &s,
         &id,
         DecisionInput::Text("hmm, later".into()),
         Some(t.clone()),
@@ -221,7 +225,7 @@ fn approvals_need_a_user_action_and_the_right_decider() {
     assert_eq!(
         m.block_on(
             m.host
-                .decide_approval(&shell, &id, DecisionInput::Allow, Some(t))
+                .decide_approval(&shell, &s, &id, DecisionInput::Allow, Some(t))
         ),
         Err(HostError::AlreadyDecided)
     );
@@ -283,6 +287,7 @@ fn client_gone_waits_times_out_and_resumes() {
         .clone();
     m.block_on(m.host.client_tool_result(
         &a,
+        &s,
         &call,
         ClientOutcome::Ok(vec![Block::text("Inserted.")]),
     ))
@@ -340,7 +345,12 @@ fn purge_stops_an_in_flight_turn_and_removes_only_the_callers_data() {
     m.inject_hang(&s1);
     m.block_on(m.host.send(&a, &s1, text("Long task"))).unwrap();
     m.block_on(m.host.send(&b, &s2, text("Hi"))).unwrap();
-    let r = m.block_on(m.host.purge(&a)).unwrap();
+    // An app may name only itself.
+    assert_eq!(
+        m.block_on(m.host.purge(&a, &b.owner())),
+        Err(HostError::NotFound)
+    );
+    let r = m.block_on(m.host.purge(&a, &a.owner())).unwrap();
     assert_eq!(r.sessions, 1);
     assert!(r.events > 0);
     assert!(m.log(&s1).is_empty());
@@ -349,11 +359,11 @@ fn purge_stops_an_in_flight_turn_and_removes_only_the_callers_data() {
         m.block_on(m.host.open_session(&a, &s1)).map(|_| ()),
         Err(HostError::NotFound)
     );
+    // The shell purges the app it names, and only that app.
     let shell = m.caller(&m.shell_token());
-    assert_eq!(
-        m.block_on(m.host.purge(&shell)),
-        Err(HostError::Unauthorized)
-    );
+    let r = m.block_on(m.host.purge(&shell, &b.owner())).unwrap();
+    assert_eq!(r.sessions, 1);
+    assert!(m.log(&s2).is_empty());
 }
 
 #[test]

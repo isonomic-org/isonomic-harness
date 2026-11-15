@@ -32,7 +32,7 @@ pub mod traits;
 mod types;
 mod watch;
 
-pub use events::Subscription;
+pub use events::{Subscription, Update};
 pub use exec::{InProcessExecutor, ManualClock, MemorySpawner};
 pub use host::{Deps, Host, HostConfig};
 pub use memory::{

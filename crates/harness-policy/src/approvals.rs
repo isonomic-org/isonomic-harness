@@ -1,4 +1,5 @@
-//! Pending approvals, across sessions.
+//! Pending approvals, across sessions. Approval ids are minted per session,
+//! so an approval is named by its session and its id together.
 
 use harness_core::*;
 use std::collections::BTreeMap;
@@ -19,7 +20,7 @@ pub struct PendingApproval {
 /// Every pending approval of a host.
 #[derive(Clone, Debug, Default)]
 pub struct Approvals {
-    pending: BTreeMap<ApprovalId, PendingApproval>,
+    pending: BTreeMap<(SessionId, ApprovalId), PendingApproval>,
 }
 
 impl Approvals {
@@ -30,17 +31,18 @@ impl Approvals {
 
     /// An approval was requested.
     pub fn add(&mut self, p: PendingApproval) {
-        self.pending.insert(p.request.approval.clone(), p);
+        self.pending
+            .insert((p.session.clone(), p.request.approval.clone()), p);
     }
 
-    /// One pending approval.
-    pub fn get(&self, id: &ApprovalId) -> Option<&PendingApproval> {
-        self.pending.get(id)
+    /// One pending approval of a session.
+    pub fn get(&self, session: &SessionId, id: &ApprovalId) -> Option<&PendingApproval> {
+        self.pending.get(&(session.clone(), id.clone()))
     }
 
     /// Remove an approval once decided.
-    pub fn take(&mut self, id: &ApprovalId) -> Option<PendingApproval> {
-        self.pending.remove(id)
+    pub fn take(&mut self, session: &SessionId, id: &ApprovalId) -> Option<PendingApproval> {
+        self.pending.remove(&(session.clone(), id.clone()))
     }
 
     /// Pending approvals visible to an owner (`None` for all).
@@ -54,27 +56,21 @@ impl Approvals {
 
     /// Approvals past their expiry at `now`, removed.
     pub fn expired(&mut self, now: Millis) -> Vec<PendingApproval> {
-        let due: Vec<ApprovalId> = self
-            .pending
-            .iter()
-            .filter(|(_, p)| p.request.expires_at.is_some_and(|t| t <= now))
-            .map(|(id, _)| id.clone())
-            .collect();
-        due.iter()
-            .filter_map(|id| self.pending.remove(id))
-            .collect()
+        self.remove_where(|p| p.request.expires_at.is_some_and(|t| t <= now))
     }
 
     /// Drop every approval of these sessions (cancel, purge).
     pub fn drop_sessions(&mut self, sessions: &[SessionId]) -> Vec<PendingApproval> {
-        let ids: Vec<ApprovalId> = self
+        self.remove_where(|p| sessions.contains(&p.session))
+    }
+
+    fn remove_where(&mut self, gone: impl Fn(&PendingApproval) -> bool) -> Vec<PendingApproval> {
+        let keys: Vec<(SessionId, ApprovalId)> = self
             .pending
             .iter()
-            .filter(|(_, p)| sessions.contains(&p.session))
-            .map(|(id, _)| id.clone())
+            .filter(|(_, p)| gone(p))
+            .map(|(k, _)| k.clone())
             .collect();
-        ids.iter()
-            .filter_map(|id| self.pending.remove(id))
-            .collect()
+        keys.iter().filter_map(|k| self.pending.remove(k)).collect()
     }
 }

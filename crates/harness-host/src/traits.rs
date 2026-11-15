@@ -81,11 +81,13 @@ pub trait ClientToolChannel: Send + Sync {
 pub trait ScopeResolver: Send + Sync {
     /// The caller a token stands for.
     fn resolve(&self, capability: &CapabilityToken) -> Result<Caller, HostError>;
-    /// Whether `token` was minted by a person acting on `approval`.
+    /// Whether `token` was minted by a person acting on `approval` of
+    /// `session`. Approval ids repeat across sessions.
     fn verify_user_action(
         &self,
         caller: &Caller,
         token: &UserActionToken,
+        session: &SessionId,
         approval: &ApprovalId,
     ) -> bool;
 }

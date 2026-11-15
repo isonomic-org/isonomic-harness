@@ -63,9 +63,11 @@ pub(crate) struct State {
     pub(crate) sessions: BTreeMap<SessionId, Arc<Slot>>,
     pub(crate) presets: BTreeMap<(Option<AppId>, PresetId), Vec<StoredPreset>>,
     pub(crate) approvals: Approvals,
-    pub(crate) decided: BTreeSet<ApprovalId>,
-    pub(crate) questions: BTreeMap<QuestionId, SessionId>,
-    pub(crate) client_calls: BTreeMap<CallId, SessionId>,
+    // Approval, question and call ids are minted per session, so each
+    // index is keyed by (session, id).
+    pub(crate) decided: BTreeSet<(SessionId, ApprovalId)>,
+    pub(crate) questions: BTreeSet<(SessionId, QuestionId)>,
+    pub(crate) client_calls: BTreeSet<(SessionId, CallId)>,
     pub(crate) audit: Vec<AuditRecord>,
     pub(crate) handles: Vec<RunHandle>,
     pub(crate) app_meters: BTreeMap<AppId, Meter>,
@@ -129,8 +131,8 @@ impl Host {
                 presets,
                 approvals: Approvals::new(),
                 decided: BTreeSet::new(),
-                questions: BTreeMap::new(),
-                client_calls: BTreeMap::new(),
+                questions: BTreeSet::new(),
+                client_calls: BTreeSet::new(),
                 audit: Vec::new(),
                 handles: Vec::new(),
                 app_meters: BTreeMap::new(),
@@ -333,7 +335,9 @@ impl Inner {
             }
             Output::RunTool { call, spec } => self.run_tool(slot, call, spec),
             Output::CancelTool(call) => {
-                lock(&self.state).client_calls.remove(&call);
+                lock(&self.state)
+                    .client_calls
+                    .remove(&(slot.id.clone(), call));
             }
             Output::Event(_) | Output::Refused(_) | Output::Idle => {}
         }
@@ -386,7 +390,7 @@ impl Inner {
             ToolKind::Client => {
                 lock(&self.state)
                     .client_calls
-                    .insert(call.call.clone(), slot.id.clone());
+                    .insert((slot.id.clone(), call.call.clone()));
                 if !self.deps.clients.is_connected(&slot.app) {
                     self.feed(slot, LoopInput::ClientGone);
                     return;

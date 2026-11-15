@@ -3,14 +3,13 @@
 
 use crate::events::Subscription;
 use crate::exec::lock;
-use crate::host::{Host, Slot};
+use crate::host::Host;
 use crate::types::*;
 use harness_core::future::BoxFuture;
 use harness_core::*;
 use harness_loop::Input as LoopInput;
 use harness_policy::{interpret, may_decide, DecideError, PendingApproval};
 use std::sync::atomic::Ordering::SeqCst;
-use std::sync::Arc;
 
 type Fut<'a, T> = BoxFuture<'a, Result<T, HostError>>;
 
@@ -87,28 +86,42 @@ impl Host {
         Box::pin(async move { Ok(lock(&me.state).approvals.list(caller.scope.app())) })
     }
 
-    /// Decide an approval. Needs a verified user-action token; Views and
-    /// third-party code never decide; an ambiguous answer is a denial.
+    /// Decide an approval of a session. Approval ids are minted per
+    /// session, so the session names which one. Needs a verified
+    /// user-action token; Views and third-party code never decide; an
+    /// ambiguous answer is a denial.
     pub fn decide_approval(
         &self,
         caller: &Caller,
+        session: &SessionId,
         id: &ApprovalId,
         decision: DecisionInput,
         token: Option<UserActionToken>,
     ) -> Fut<'_, ()> {
         let (me, caller, id) = (self.0.clone(), caller.clone(), id.clone());
+        let session = session.clone();
         Box::pin(async move {
             let pending = {
                 let st = lock(&me.state);
-                match st.approvals.get(&id) {
+                match st.approvals.get(&session, &id) {
                     Some(p) => p.clone(),
-                    None if st.decided.contains(&id) => return Err(HostError::AlreadyDecided),
-                    None => return Err(HostError::NotFound),
+                    None => {
+                        let seen = st.decided.contains(&(session.clone(), id))
+                            && st
+                                .sessions
+                                .get(&session)
+                                .is_some_and(|s| caller.scope.sees(&s.app));
+                        return Err(if seen {
+                            HostError::AlreadyDecided
+                        } else {
+                            HostError::NotFound
+                        });
+                    }
                 }
             };
             let verified = token
                 .as_ref()
-                .is_some_and(|t| me.deps.scopes.verify_user_action(&caller, t, &id));
+                .is_some_and(|t| me.deps.scopes.verify_user_action(&caller, t, &session, &id));
             may_decide(&caller.scope, &pending.owner, token.as_ref(), verified).map_err(
                 |e| match e {
                     DecideError::NotFound => HostError::NotFound,
@@ -131,21 +144,21 @@ impl Host {
         })
     }
 
-    /// Answer an ask-user question.
+    /// Answer an ask-user question of a session.
     pub fn answer_question(
         &self,
         caller: &Caller,
+        session: &SessionId,
         id: &QuestionId,
         answer: AnswerInput,
     ) -> Fut<'_, ()> {
         let (me, caller, id) = (self.0.clone(), caller.clone(), id.clone());
+        let session = session.clone();
         Box::pin(async move {
-            let session = lock(&me.state)
-                .questions
-                .get(&id)
-                .cloned()
-                .ok_or(HostError::NotFound)?;
             let slot = me.load(&caller, &session).await?;
+            if !lock(&me.state).questions.contains(&(session, id.clone())) {
+                return Err(HostError::NotFound);
+            }
             let a = Answer {
                 question: id,
                 selected: answer.selected,
@@ -183,32 +196,35 @@ impl Host {
         })
     }
 
-    /// A client tool's result, from the app that registered it.
+    /// A client tool's result for a call of a session, from the app that
+    /// registered the tool. A result for a call that is no longer open is
+    /// dropped and audited.
     pub fn client_tool_result(
         &self,
         caller: &Caller,
+        session: &SessionId,
         call: &CallId,
         outcome: ClientOutcome,
     ) -> Fut<'_, ()> {
         let (me, caller, call) = (self.0.clone(), caller.clone(), call.clone());
+        let session = session.clone();
         Box::pin(async move {
-            let session = lock(&me.state).client_calls.get(&call).cloned();
-            let Some(session) = session else {
-                let slots: Vec<Arc<Slot>> = lock(&me.state).sessions.values().cloned().collect();
-                if let Some(s) = slots.iter().find(|s| caller.scope.app() == Some(&s.app)) {
-                    lock(&me.state).audit.push(AuditRecord {
-                        session: s.id.clone(),
-                        app: s.app.clone(),
+            let slot = me.owned(&caller, &session).await?;
+            {
+                let mut st = lock(&me.state);
+                if !st.client_calls.contains(&(session, call.clone())) {
+                    st.audit.push(AuditRecord {
+                        session: slot.id.clone(),
+                        app: slot.app.clone(),
                         seq: 0,
                         at: me.now(),
                         kind: "tool.result.late".into(),
                         call: Some(call),
                         detail: "A result after the call closed was dropped.".into(),
                     });
+                    return Ok(());
                 }
-                return Ok(());
-            };
-            let slot = me.owned(&caller, &session).await?;
+            }
             let done = match outcome {
                 ClientOutcome::Ok(content) => harness_tools::ToolDone {
                     outcome: ToolOutcome::Ok,
@@ -252,15 +268,16 @@ impl Host {
         })
     }
 
-    /// An app deletes all of its own sessions: in-flight turns stop first,
-    /// then logs and blobs go. Nothing else is touched.
-    pub fn purge(&self, caller: &Caller) -> Fut<'_, PurgeReport> {
-        let (me, caller) = (self.0.clone(), caller.clone());
+    /// Delete every session of the named app: in-flight turns stop first,
+    /// then logs and blobs go. Nothing else is touched. An app may name
+    /// only itself; the shell may name any app.
+    pub fn purge(&self, caller: &Caller, app: &AppId) -> Fut<'_, PurgeReport> {
+        let (me, caller, app) = (self.0.clone(), caller.clone(), app.clone());
         Box::pin(async move {
-            let Scope::App { app, .. } = &caller.scope else {
-                return Err(HostError::Unauthorized);
-            };
-            let metas = me.deps.store.list_meta(Some(app)).await?;
+            if caller.scope.app().is_some_and(|own| own != &app) {
+                return Err(HostError::NotFound);
+            }
+            let metas = me.deps.store.list_meta(Some(&app)).await?;
             let ids: Vec<SessionId> = metas.iter().map(|m| m.id.clone()).collect();
             for id in &ids {
                 if let Some(slot) = me.slot(id) {
@@ -282,8 +299,9 @@ impl Host {
                 }
             }
             st.approvals.drop_sessions(&ids);
-            st.questions.retain(|_, s| !ids.contains(s));
-            st.client_calls.retain(|_, s| !ids.contains(s));
+            st.decided.retain(|(s, _)| !ids.contains(s));
+            st.questions.retain(|(s, _)| !ids.contains(s));
+            st.client_calls.retain(|(s, _)| !ids.contains(s));
             Ok(PurgeReport {
                 sessions: ids.len() as u64,
                 events,

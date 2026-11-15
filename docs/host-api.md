@@ -38,13 +38,13 @@ every such change is also in `status.md`.
 | `sessions.send(id, input)` | `send(caller, id, input)` → `Accepted { queued }` | owner app | Queues input in the inbox; a turn opens when it is claimed. Attachment blobs must belong to the caller's app. |
 | `sessions.continue(id)` | `continue_reply(caller, id)` | owner app | Opens a `continue` turn that extends the last sealed partial reply. Refused (`ContinueRefused`) after tool calls or a refusal, when there is nothing to continue, or when the model cannot take an assistant prefix. |
 | `sessions.cancel(id)` | `cancel(caller, id)` | owner app, shell | Stops the turn at its next await point. A streaming reply is sealed with its partial text, the request is recorded as `attempt(cancelled)`, every open tool call gets a `cancelled` result, and the turn ends `cancelled`. Idempotent. |
-| `sessions.purge(scope)` | `purge(caller)` → `PurgeReport` | app (its own data only) | Stops the caller's in-flight turns, then deletes its sessions' logs, attachments and artifacts. Keys, settings and every other app's data are untouched. |
-| `sessions.subscribe(id, from_seq)` | `subscribe(caller, id, from_seq)` → `Subscription` | owner app, shell | Durable events with `seq > from_seq`, then live ones, with no gaps or duplicates; plus a separate lossy stream of `LiveDelta`. See "Events". |
+| `sessions.purge(app)` | `purge(caller, app)` → `PurgeReport` | app (naming itself only), shell (any app) | Stops the named app's in-flight turns, then deletes its sessions' logs, attachments and artifacts. Keys, settings and every other app's data are untouched. An app that names another app gets `NotFound`. |
+| `sessions.subscribe(id, from_seq)` | `subscribe(caller, id, from_seq)` → `Subscription` | owner app, shell | Durable events with `seq > from_seq`, then live ones, with no gaps or duplicates; plus a lossy stream of `LiveDelta`. `Subscription::next_update()` awaits either. See "Events". |
 | `approvals.list(scope)` | `list_approvals(caller)` → `Vec<PendingApproval>` | app (own sessions), shell (all) | Pending `approval.request`s. |
-| `approvals.decide(id, decision, user_action_token)` | `decide_approval(caller, id, decision, token)` | shell; the owning first-party app | See "Approvals". Writes `approval.decision`. |
-| `questions.answer(id, answer)` | `answer_question(caller, id, answer)` | owning app, shell | Writes `answer`, then the ask-user call's `tool.result`. |
+| `approvals.decide(session, id, decision, user_action_token)` | `decide_approval(caller, session, id, decision, token)` | shell; the owning first-party app | See "Approvals" and "Pending ids". Writes `approval.decision`. |
+| `questions.answer(session, id, answer)` | `answer_question(caller, session, id, answer)` | owning app, shell | Writes `answer`, then the ask-user call's `tool.result`. `NotFound` when that session has no such open question. |
 | `tools.register_client(session, specs)` | `register_client_tools(caller, session, specs)` | owner app | Registers `client` tools for that session and app only; replaces that app's earlier set. Specs of any other kind are refused. |
-| `tools.result(call_id, outcome)` | `client_tool_result(caller, call, outcome)` | the app that registered the tool | Writes the call's `tool.result`. A late result after a timeout is dropped and audited. |
+| `tools.result(session, call_id, outcome)` | `client_tool_result(caller, session, call, outcome)` | the app that registered the tool | Writes the call's `tool.result`. A late result after a timeout is dropped and audited against that session. `NotFound` when the session is not the caller's. |
 | `presets.list()` | `list_presets(caller)` → `Vec<PresetSummary>` | app (own and built-in), shell | Invalid presets stay listed with their diagnostics. |
 | `presets.get(id)` | `get_preset(caller, id)` → `Preset` | app (own and built-in), shell | TOML text, parsed form, diagnostics. |
 | `presets.put(preset)` | `put_preset(caller, toml)` → `PresetRef` | app (own namespace) | Validates and stores a new version. Limits and policy may only be tightened from the host defaults. |
@@ -105,7 +105,8 @@ turn are not call errors: they are recorded in the log (`attempt`, a
   levels.
 - A decision needs a **user-action token**, minted by the engine's UI broker
   when a person acts and checked through `ScopeResolver`. No token:
-  `MissingUserAction`, and nothing is written.
+  `MissingUserAction`, and nothing is written. The token is for one approval
+  of one session: `verify_user_action` takes both.
 - The shell's approvals sheet may decide any approval. A first-party app may
   decide only for its own sessions. Views and third-party code may request
   approvals and never decide them (`NotAllowedToDecide`).
@@ -114,6 +115,17 @@ turn are not call errors: they are recorded in the log (`attempt`, a
   denial with basis `timeout`.
 - A denied call gets a `tool.result` with outcome `denied` and a reason the
   model can read.
+
+### Pending ids
+
+Approval, question and tool-call ids are minted per session (`apv_0001`,
+`qst_0001`, `cal_0001`), and a fork continues its parent's counters. So an
+id alone does not name one pending item: two sessions regularly hold the
+same id. Everything pending is keyed by **(session, id)**, in the host and
+in harness-policy's `Approvals` index, and `decide_approval`,
+`answer_question` and `client_tool_result` take the session. A
+`PendingApproval` carries its `session`; `SessionSnapshot` lists ids for its
+own session only.
 
 ## Events
 
@@ -128,6 +140,11 @@ turn are not call errors: they are recorded in the log (`attempt`, a
 - `LiveDelta`s go on a separate lossy channel, dropped first under pressure.
   The durable `assistant` event replaces them. A queued delta wakes the
   task waiting on `Subscription::next()`, as a durable event does.
+- `Subscription::next_update()` awaits either kind and returns
+  `Update::Event(SessionEvent)` or `Update::Delta(LiveDelta)`. Durable
+  events keep their order with no gaps or duplicates; deltas stay lossy. A
+  delta comes after the event its `after_seq` names and before the next
+  one, so it never follows the `assistant` event that replaces it.
 
 ## Crash isolation and recovery
 
@@ -159,7 +176,7 @@ pub trait ClientToolChannel: Send + Sync {
 }
 pub trait ScopeResolver: Send + Sync {
     fn resolve(&self, capability: &CapabilityToken) -> Result<Caller, HostError>;
-    fn verify_user_action(&self, caller: &Caller, token: &UserActionToken, approval: &ApprovalId) -> bool;
+    fn verify_user_action(&self, caller: &Caller, token: &UserActionToken, session: &SessionId, approval: &ApprovalId) -> bool;
 }
 pub trait BlobStore: Send + Sync {
     fn put(&self, owner: &AppId, s: &SessionId, media_type: &str, bytes: Vec<u8>) -> BoxFuture<'_, Result<BlobId, StoreError>>;
@@ -192,7 +209,7 @@ a runtime-free `MemorySpawner`, `ManualClock`, and a `ModelClient` you supply
 the SDK's testkit exposes it through the SDK client API.
 
 Test helpers on `MemoryHost`: `app_token(app, kind)`, `shell_token()`,
-`user_action(caller, approval)`, `disconnect(app)`, `reconnect(app)`,
+`user_action(caller, session, approval)`, `disconnect(app)`, `reconnect(app)`,
 `advance(ms)`, `inject_panic(session)`, `inject_hang(session)`, and
 `log(session)` to read a session's events directly.
 
@@ -203,8 +220,17 @@ Differences from the first publication, all in spelling or additive:
 - **Calls take a resolved `Caller`.** The engine resolves the capability
   token with `ScopeResolver::resolve` and passes the `Caller`. `Caller` has
   `shell()` and `app(name, kind)` constructors.
-- **`decide_approval(caller, id, decision, token: Option<UserActionToken>)`.**
+- **`decide_approval(caller, session, id, decision, token: Option<UserActionToken>)`.**
   `None` answers `MissingUserAction`, the same as an unverified token.
+- **Pending work is named by (session, id).** `decide_approval`,
+  `answer_question` and `client_tool_result` take the session before the
+  id, and `ScopeResolver::verify_user_action` takes the session before the
+  approval. In harness-policy, `Approvals::get` and `Approvals::take` take
+  `(session, id)`.
+- **`purge(caller, app)`** names the app. An app may name only itself; the
+  shell may name any app.
+- **`Subscription::next_update()`** and the `Update` enum: one call that
+  awaits a durable event or a live delta.
 - **`get_artifact(caller, artifact, version: Option<u32>)`.** The latest
   version when `None`.
 - **`activity(caller, app: Option<AppId>)`.** Filters by app; shell only.
