@@ -2,6 +2,23 @@
 
 Newest first. Every deviation from the Milestone 0 brief is stated here.
 
+## 2026-11-15 — harness-tools
+
+- `Tool` (engine tools, async, runtime-agnostic), `ToolOutput` (done, or
+  ask the person), `ToolDone` with readable failures, denials, timeouts and
+  cancellations.
+- `Registry`: scoped per session; client registrations are scoped to the
+  registering app, replace its earlier set, refuse other kinds and refuse
+  names held by others; Cell specs can be listed but calls are refused
+  until Milestone 6.
+- `guard`: unparseable input, non-object input, missing required fields and
+  wrong top-level types become results the model can read; nothing runs.
+- `plan_batches`: consecutive parallel calls share a batch; serial calls run
+  alone. `limit_output`: long output keeps head and tail and records it.
+- `ClientCalls`: an app going away gives its calls a deadline (awaiting
+  client); calls past it time out readably; late results are refused; the
+  app coming back clears deadlines.
+
 ## 2026-11-15 — harness-log
 
 - `SessionStore` (async, runtime-agnostic, appends refuse gaps and
