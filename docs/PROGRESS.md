@@ -5,8 +5,8 @@ policy, presets, toolkit, compaction, host, report.
 
 | # | Task | Branch | State |
 | --- | --- | --- | --- |
-| 0 | Step 0: repo, workspace, CI, allow-list | `step-0-scaffold` | pull request open |
-| 1 | harness-core: ids, schema v1, JSON Schema | `core-schema-v1` | next |
+| 0 | Step 0: repo, workspace, CI, allow-list | `step-0-scaffold` | pull request #1 |
+| 1 | harness-core: ids, schema v1, JSON Schema | `core-schema-v1` | pull request open |
 | 2 | Six recorded fixtures, `cargo xtask fixtures` | `fixtures-v1` | next |
 | 3 | `docs/host-api.md` | `docs-host-api` | next |
 | 4 | harness-log: SessionStore, JSONL generations, migrations, `derive_history()` | | |
