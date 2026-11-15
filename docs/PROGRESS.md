@@ -14,7 +14,7 @@ policy, presets, toolkit, compaction, host, report.
 | 6 | harness-loop | `loop-v1` | pull request open, stacked on #9 |
 | 7 | harness-policy | `policy-v1` | pull request open, stacked on #6 |
 | 8 | harness-preset | `preset-v1` | pull request open, stacked on #7 |
-| 9 | harness-toolkit | | |
+| 9 | harness-toolkit | `toolkit-v1` | pull request open, stacked on #10 |
 | 10 | harness-compact | `compact-v1` | pull request open, stacked on #8 |
 | 11 | harness-host and MemoryHost | | |
 | 12 | `cargo xtask report`, `smoke`; the gate | | |
