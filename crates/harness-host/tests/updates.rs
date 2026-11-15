@@ -3,13 +3,7 @@
 
 use harness_core::*;
 use harness_host::*;
-use std::sync::Arc;
-use std::task::{Context, Wake, Waker};
-
-struct Quiet;
-impl Wake for Quiet {
-    fn wake(self: Arc<Self>) {}
-}
+use std::task::{Context, Waker};
 
 fn host_with_queue(queue: usize) -> (MemoryHost, Caller, SessionId) {
     let mut cfg = memory_config();
@@ -138,8 +132,7 @@ fn polling_then_dropping_loses_nothing() {
     let (m, a, s) = host_with_queue(256);
     let start = m.log(&s).len() as u64;
     let mut sub = m.block_on(m.host.subscribe(&a, &s, start)).unwrap();
-    let waker = Waker::from(Arc::new(Quiet));
-    let mut cx = Context::from_waker(&waker);
+    let mut cx = Context::from_waker(Waker::noop());
 
     // Caught up: pending. Drop the future, more than once.
     for _ in 0..3 {
@@ -175,8 +168,7 @@ fn updates_end_after_a_purge() {
     let total = m.log(&s).len() as u64;
     let mut caught_up = m.block_on(m.host.subscribe(&a, &s, total)).unwrap();
     let mut behind = m.block_on(m.host.subscribe(&a, &s, 0)).unwrap();
-    let waker = Waker::from(Arc::new(Quiet));
-    let mut cx = Context::from_waker(&waker);
+    let mut cx = Context::from_waker(Waker::noop());
     let mut waiting = caught_up.next_update();
     assert!(waiting.as_mut().poll(&mut cx).is_pending());
 
