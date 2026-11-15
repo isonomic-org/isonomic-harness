@@ -5,10 +5,10 @@ MemoryHost. The SDK's `agents` interface maps onto the calls one to one; the
 engine's `crates/agents` implements the traits and serves the calls over the
 broker after checking the token.
 
-Status: **published for the SDK and Desktop sessions; harness-host is not
-built yet.** The call set, who may call what, and the semantics below are
-the contract. Rust names may still change in spelling only; any change is
-listed in `status.md` and announced in the SDK's `docs/requests.md`.
+Status: **built** (`crates/harness-host`, pull request #12). The call set,
+who may call what, and the semantics below are the contract. Where the
+build differs from the first publication, "As built" at the end says so;
+every such change is also in `status.md`.
 
 ## Conventions
 
@@ -194,6 +194,42 @@ Test helpers on `MemoryHost`: `app_token(app, kind)`, `shell_token()`,
 `user_action(caller, approval)`, `disconnect(app)`, `reconnect(app)`,
 `advance(ms)`, `inject_panic(session)`, `inject_hang(session)`, and
 `log(session)` to read a session's events directly.
+
+## As built
+
+Differences from the first publication, all in spelling or additive:
+
+- **Calls take a resolved `Caller`.** The engine resolves the capability
+  token with `ScopeResolver::resolve` and passes the `Caller`. `Caller` has
+  `shell()` and `app(name, kind)` constructors.
+- **`decide_approval(caller, id, decision, token: Option<UserActionToken>)`.**
+  `None` answers `MissingUserAction`, the same as an unverified token.
+- **`get_artifact(caller, artifact, version: Option<u32>)`.** The latest
+  version when `None`.
+- **`activity(caller, app: Option<AppId>)`.** Filters by app; shell only.
+- **`Subscription::next()`** returns the next durable event, or `None` after
+  a purge. `Subscription::deltas()` drains the lossy live deltas.
+- **`SessionStore::list_meta(owner)`** takes the owner only; the host applies
+  `SessionFilter`.
+- **New trait `Locale`** (in `Deps`): the request context for a session
+  (date, time zone, language, and a location only when the person opted in).
+  The engine owns these values, and the context link records them.
+- **`Host::new(Deps, HostConfig)`.** `HostConfig` holds the preset ceiling,
+  per-session and per-app limits, the engine tools, the subscriber queue
+  size, the watchdog period and the hardware profile.
+- **New error `HostError::InvalidTools(reason)`** for a refused client tool
+  registration.
+- **`Host::tick()`** runs the watchdog and deadlines. A background task also
+  calls it every `watchdog_ms`.
+- **MemoryHost** also has `insert_token(token, caller)` (and
+  `MemoryScopes::insert`) for tokens issued elsewhere, such as the SDK
+  testkit's `apps.grant`. It has `caller(token)`, `run()` and
+  `block_on(fut)`, and it exposes its parts as public fields (`store`,
+  `model`, `clients`, `scopes`, `blobs`, `spawner`, `clock`). The scripted
+  model is `ScriptedModel`, with `text`, `calls` and `push`.
+- **A hang** is a turn that makes no progress for the preset's `hang_ms`
+  while it is not waiting on a person or a client app. A **panic** inside a
+  loop rebuilds that session from its log with the turn sealed as failed.
 
 ## Versioning of this API
 
