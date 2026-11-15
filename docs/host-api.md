@@ -221,10 +221,12 @@ Differences from the first publication, all in spelling or additive:
   registration.
 - **`Host::tick()`** runs the watchdog and deadlines. A background task also
   calls it every `watchdog_ms`.
-- **MemoryHost** also has `caller(token)`, `run()` and `block_on(fut)`, and it
-  exposes its parts as public fields (`store`, `model`, `clients`, `scopes`,
-  `blobs`, `spawner`, `clock`). The scripted model is `ScriptedModel`, with
-  `text`, `calls` and `push`.
+- **MemoryHost** also has `insert_token(token, caller)` (and
+  `MemoryScopes::insert`) for tokens issued elsewhere, such as the SDK
+  testkit's `apps.grant`. It has `caller(token)`, `run()` and
+  `block_on(fut)`, and it exposes its parts as public fields (`store`,
+  `model`, `clients`, `scopes`, `blobs`, `spawner`, `clock`). The scripted
+  model is `ScriptedModel`, with `text`, `calls` and `push`.
 - **A hang** is a turn that makes no progress for the preset's `hang_ms`
   while it is not waiting on a person or a client app. A **panic** inside a
   loop rebuilds that session from its log with the turn sealed as failed.
