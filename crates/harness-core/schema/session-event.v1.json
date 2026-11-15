@@ -1,0 +1,407 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://isonomic.com/schema/session-event/v1.json",
+  "title": "Isonomic session event, schema v1, revision 0",
+  "description": "One durable session event: the envelope (session, seq, at, turn, step), then type, then the payload. Producers emit exactly these shapes. Readers must also accept unknown event types, unknown block types, unknown enum values and unknown fields, which later revisions add, and render them generically.",
+  "type": "object",
+  "required": ["session", "seq", "at", "type"],
+  "properties": {
+    "session": { "$ref": "#/$defs/id" },
+    "seq": { "type": "integer", "minimum": 1, "description": "1, 2, 3, ... per session, no gaps." },
+    "at": { "$ref": "#/$defs/millis" },
+    "turn": { "$ref": "#/$defs/id" },
+    "step": { "$ref": "#/$defs/id" },
+    "type": {
+      "enum": ["session.start", "session.status", "forked", "system", "turn.start", "user", "step.start", "assistant", "attempt", "tool.call", "tool.result", "approval.request", "approval.decision", "question", "answer", "artifact", "title", "step.end", "turn.end", "compacted"]
+    }
+  },
+  "oneOf": [
+    { "$ref": "#/$defs/session.start" },
+    { "$ref": "#/$defs/session.status" },
+    { "$ref": "#/$defs/forked" },
+    { "$ref": "#/$defs/system" },
+    { "$ref": "#/$defs/turn.start" },
+    { "$ref": "#/$defs/user" },
+    { "$ref": "#/$defs/step.start" },
+    { "$ref": "#/$defs/assistant" },
+    { "$ref": "#/$defs/attempt" },
+    { "$ref": "#/$defs/tool.call" },
+    { "$ref": "#/$defs/tool.result" },
+    { "$ref": "#/$defs/approval.request" },
+    { "$ref": "#/$defs/approval.decision" },
+    { "$ref": "#/$defs/question" },
+    { "$ref": "#/$defs/answer" },
+    { "$ref": "#/$defs/artifact" },
+    { "$ref": "#/$defs/title" },
+    { "$ref": "#/$defs/step.end" },
+    { "$ref": "#/$defs/turn.end" },
+    { "$ref": "#/$defs/compacted" }
+  ],
+  "$defs": {
+    "id": { "type": "string", "minLength": 1, "description": "Opaque; compare, never parse." },
+    "ids": { "type": "array", "items": { "$ref": "#/$defs/id" } },
+    "uint": { "type": "integer", "minimum": 0 },
+    "millis": { "type": "integer", "minimum": 0, "description": "Milliseconds since the Unix epoch, UTC." },
+    "text": { "type": "string" },
+    "any": { "description": "Any JSON value." },
+    "error": {
+      "type": "object",
+      "required": ["code", "message"],
+      "properties": { "code": { "type": "string" }, "message": { "type": "string" }, "transient": { "type": "boolean" } }
+    },
+    "usage": {
+      "type": "object",
+      "required": ["input_tokens", "output_tokens"],
+      "properties": {
+        "input_tokens": { "$ref": "#/$defs/uint" },
+        "output_tokens": { "$ref": "#/$defs/uint" },
+        "reasoning_tokens": { "$ref": "#/$defs/uint" },
+        "cached_tokens": { "$ref": "#/$defs/uint" },
+        "cost_micros": { "$ref": "#/$defs/uint" }
+      }
+    },
+    "effects": {
+      "type": "array",
+      "items": { "enum": ["reads_private_data", "ingests_untrusted_content", "acts_outward", "executes_code"] }
+    },
+    "tool_kind": { "enum": ["engine", "client", "cell"] },
+    "decider": {
+      "type": "object",
+      "required": ["scope"],
+      "properties": { "scope": { "enum": ["shell", "app", "host"] }, "app": { "$ref": "#/$defs/id" } }
+    },
+    "blocks": { "type": "array", "items": { "$ref": "#/$defs/block" } },
+    "block": {
+      "oneOf": [
+        { "type": "object", "required": ["type", "text"], "properties": { "type": { "const": "text" }, "text": { "$ref": "#/$defs/text" } } },
+        {
+          "type": "object",
+          "required": ["type", "text"],
+          "properties": { "type": { "const": "reasoning" }, "text": { "$ref": "#/$defs/text" }, "elapsed_ms": { "$ref": "#/$defs/uint" } }
+        },
+        {
+          "type": "object",
+          "required": ["type", "blob", "name", "media_type", "bytes"],
+          "properties": {
+            "type": { "const": "attachment" },
+            "blob": { "$ref": "#/$defs/id" },
+            "name": { "type": "string" },
+            "media_type": { "type": "string" },
+            "bytes": { "$ref": "#/$defs/uint" },
+            "text": { "$ref": "#/$defs/text" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["type", "target", "id", "label"],
+          "properties": { "type": { "const": "mention" }, "target": { "type": "string" }, "id": { "type": "string" }, "label": { "type": "string" } }
+        },
+        { "type": "object", "required": ["type", "value"], "properties": { "type": { "const": "json" }, "value": { "$ref": "#/$defs/any" } } }
+      ]
+    },
+    "tool_spec": {
+      "type": "object",
+      "required": ["name", "description", "input_schema", "kind", "concurrency"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "input_schema": { "type": "object" },
+        "kind": { "$ref": "#/$defs/tool_kind" },
+        "effects": { "$ref": "#/$defs/effects" },
+        "concurrency": { "enum": ["parallel", "serial"] }
+      }
+    },
+    "chunk": {
+      "description": "[block, bytes, at_ms]: bytes of UTF-8 appended to content[block], at_ms after the step started.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/uint" },
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "session.start": {
+      "type": "object",
+      "required": ["type", "class", "app", "principal", "preset"],
+      "properties": {
+        "type": { "const": "session.start" },
+        "class": { "enum": ["interactive", "autonomous", "delegated"] },
+        "app": { "$ref": "#/$defs/id" },
+        "principal": {
+          "type": "object",
+          "required": ["kind"],
+          "properties": { "kind": { "enum": ["user", "agent"] }, "id": { "type": "string" } }
+        },
+        "preset": {
+          "type": "object",
+          "required": ["id", "version"],
+          "properties": { "id": { "$ref": "#/$defs/id" }, "version": { "$ref": "#/$defs/uint" } }
+        },
+        "parent": {
+          "type": "object",
+          "required": ["session", "call"],
+          "properties": { "session": { "$ref": "#/$defs/id" }, "call": { "$ref": "#/$defs/id" } }
+        },
+        "profile": { "enum": ["intel", "low", "standard", "high"] }
+      }
+    },
+    "session.status": {
+      "type": "object",
+      "required": ["type", "status"],
+      "properties": {
+        "type": { "const": "session.status" },
+        "status": { "enum": ["active", "awaiting_client", "failed"] },
+        "reason": { "type": "string" },
+        "calls": { "$ref": "#/$defs/ids" },
+        "deadline": { "$ref": "#/$defs/millis" }
+      }
+    },
+    "forked": {
+      "type": "object",
+      "required": ["type", "from", "at_seq", "reason"],
+      "properties": {
+        "type": { "const": "forked" },
+        "from": { "$ref": "#/$defs/id" },
+        "at_seq": { "$ref": "#/$defs/uint" },
+        "after_turn": { "$ref": "#/$defs/id" },
+        "reason": { "enum": ["edit", "regenerate", "branch"] }
+      }
+    },
+    "system": {
+      "type": "object",
+      "required": ["type", "origin", "text"],
+      "properties": {
+        "type": { "const": "system" },
+        "origin": { "enum": ["preset", "context", "notice"] },
+        "text": { "$ref": "#/$defs/text" },
+        "context": {
+          "type": "object",
+          "required": ["date", "time_zone", "language"],
+          "properties": { "date": { "type": "string" }, "time_zone": { "type": "string" }, "language": { "type": "string" }, "location": { "type": "string" } }
+        }
+      }
+    },
+    "turn.start": {
+      "type": "object",
+      "required": ["type", "cause"],
+      "properties": {
+        "type": { "const": "turn.start" },
+        "cause": { "enum": ["user", "continue", "wake", "delegate"] },
+        "wake": {
+          "type": "object",
+          "required": ["source", "id"],
+          "properties": { "source": { "enum": ["schedule", "heartbeat", "channel", "webhook"] }, "id": { "type": "string" } }
+        }
+      }
+    },
+    "user": {
+      "type": "object",
+      "required": ["type", "content"],
+      "properties": { "type": { "const": "user" }, "content": { "$ref": "#/$defs/blocks" } }
+    },
+    "step.start": {
+      "type": "object",
+      "required": ["type", "purpose", "model", "params"],
+      "properties": {
+        "type": { "const": "step.start" },
+        "purpose": { "enum": ["reply", "title", "summary"] },
+        "model": { "type": "string" },
+        "params": {
+          "type": "object",
+          "required": ["max_output_tokens", "reasoning"],
+          "properties": {
+            "max_output_tokens": { "$ref": "#/$defs/uint" },
+            "reasoning": { "enum": ["off", "low", "medium", "high"] },
+            "options": { "type": "object" }
+          }
+        },
+        "tools": { "type": "array", "items": { "$ref": "#/$defs/tool_spec" } }
+      }
+    },
+    "assistant": {
+      "type": "object",
+      "required": ["type", "content", "stop", "stream"],
+      "properties": {
+        "type": { "const": "assistant" },
+        "content": { "$ref": "#/$defs/blocks" },
+        "stop": { "enum": ["end", "tool_use", "max_tokens", "cancelled"] },
+        "stream": { "type": "array", "items": { "$ref": "#/$defs/chunk" } },
+        "usage": { "$ref": "#/$defs/usage" },
+        "continues": { "$ref": "#/$defs/uint" }
+      }
+    },
+    "attempt": {
+      "type": "object",
+      "required": ["type", "outcome"],
+      "properties": {
+        "type": { "const": "attempt" },
+        "outcome": { "enum": ["error", "cancelled", "refused"] },
+        "error": { "$ref": "#/$defs/error" },
+        "content": { "$ref": "#/$defs/blocks" },
+        "usage": { "$ref": "#/$defs/usage" },
+        "retry": { "$ref": "#/$defs/uint" },
+        "will_retry": { "type": "boolean" }
+      }
+    },
+    "tool.call": {
+      "type": "object",
+      "required": ["type", "call", "tool", "kind", "input"],
+      "properties": {
+        "type": { "const": "tool.call" },
+        "call": { "$ref": "#/$defs/id" },
+        "tool": { "type": "string", "minLength": 1 },
+        "kind": { "$ref": "#/$defs/tool_kind" },
+        "input": { "$ref": "#/$defs/any" },
+        "input_raw": { "type": "string" },
+        "effects": { "$ref": "#/$defs/effects" },
+        "batch": { "$ref": "#/$defs/uint" },
+        "child": { "$ref": "#/$defs/id" }
+      }
+    },
+    "tool.result": {
+      "type": "object",
+      "required": ["type", "call", "outcome"],
+      "properties": {
+        "type": { "const": "tool.result" },
+        "call": { "$ref": "#/$defs/id" },
+        "outcome": { "enum": ["ok", "error", "denied", "timeout", "cancelled"] },
+        "content": { "$ref": "#/$defs/blocks" },
+        "error": { "$ref": "#/$defs/error" },
+        "truncated": {
+          "type": "object",
+          "required": ["original_bytes", "head_bytes", "tail_bytes"],
+          "properties": { "original_bytes": { "$ref": "#/$defs/uint" }, "head_bytes": { "$ref": "#/$defs/uint" }, "tail_bytes": { "$ref": "#/$defs/uint" } }
+        },
+        "duration_ms": { "$ref": "#/$defs/uint" }
+      }
+    },
+    "approval.request": {
+      "type": "object",
+      "required": ["type", "approval", "summary", "rule"],
+      "properties": {
+        "type": { "const": "approval.request" },
+        "approval": { "$ref": "#/$defs/id" },
+        "call": { "$ref": "#/$defs/id" },
+        "summary": { "type": "string" },
+        "rule": { "enum": ["acts_outward", "executes_code", "three_flag", "autonomy"] },
+        "effects": { "$ref": "#/$defs/effects" },
+        "expires_at": { "$ref": "#/$defs/millis" }
+      }
+    },
+    "approval.decision": {
+      "type": "object",
+      "required": ["type", "approval", "decision", "basis", "by"],
+      "properties": {
+        "type": { "const": "approval.decision" },
+        "approval": { "$ref": "#/$defs/id" },
+        "decision": { "enum": ["allow", "deny"] },
+        "basis": { "enum": ["user", "ambiguous", "timeout", "policy", "cancelled"] },
+        "by": { "$ref": "#/$defs/decider" },
+        "answer": { "type": "string" },
+        "reason": { "type": "string" }
+      }
+    },
+    "question": {
+      "type": "object",
+      "required": ["type", "question", "prompt"],
+      "properties": {
+        "type": { "const": "question" },
+        "question": { "$ref": "#/$defs/id" },
+        "call": { "$ref": "#/$defs/id" },
+        "prompt": { "type": "string" },
+        "options": {
+          "type": "array",
+          "items": { "type": "object", "required": ["id", "label"], "properties": { "id": { "type": "string" }, "label": { "type": "string" } } }
+        },
+        "multiple": { "type": "boolean" },
+        "free_text": { "type": "boolean" }
+      }
+    },
+    "answer": {
+      "type": "object",
+      "required": ["type", "question", "by"],
+      "properties": {
+        "type": { "const": "answer" },
+        "question": { "$ref": "#/$defs/id" },
+        "selected": { "type": "array", "items": { "type": "string" } },
+        "text": { "type": "string" },
+        "skipped": { "type": "boolean" },
+        "by": { "$ref": "#/$defs/decider" }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "required": ["type", "artifact", "version", "op", "title", "media_type", "blob", "bytes"],
+      "properties": {
+        "type": { "const": "artifact" },
+        "artifact": { "$ref": "#/$defs/id" },
+        "version": { "type": "integer", "minimum": 1 },
+        "op": { "enum": ["create", "update"] },
+        "title": { "type": "string" },
+        "media_type": { "type": "string" },
+        "blob": { "$ref": "#/$defs/id" },
+        "bytes": { "$ref": "#/$defs/uint" },
+        "call": { "$ref": "#/$defs/id" }
+      }
+    },
+    "title": {
+      "type": "object",
+      "required": ["type", "title", "source"],
+      "properties": { "type": { "const": "title" }, "title": { "type": "string" }, "source": { "enum": ["model", "heuristic", "user"] } }
+    },
+    "step.end": {
+      "type": "object",
+      "required": ["type", "outcome", "duration_ms"],
+      "properties": {
+        "type": { "const": "step.end" },
+        "outcome": { "enum": ["complete", "tool_calls", "cancelled", "failed", "refused", "budget"] },
+        "duration_ms": { "$ref": "#/$defs/uint" },
+        "usage": { "$ref": "#/$defs/usage" }
+      }
+    },
+    "turn.end": {
+      "type": "object",
+      "required": ["type", "stop", "steps", "duration_ms", "usage"],
+      "properties": {
+        "type": { "const": "turn.end" },
+        "stop": { "enum": ["done", "cancelled", "failed", "budget", "rejected", "refused", "interrupted"] },
+        "steps": { "$ref": "#/$defs/uint" },
+        "duration_ms": { "$ref": "#/$defs/uint" },
+        "usage": { "$ref": "#/$defs/usage" },
+        "reason": { "type": "string" },
+        "error": { "$ref": "#/$defs/error" },
+        "budget": {
+          "type": "object",
+          "required": ["kind", "limit", "used"],
+          "properties": { "kind": { "enum": ["tokens", "steps", "wall_time", "cost"] }, "limit": { "$ref": "#/$defs/uint" }, "used": { "$ref": "#/$defs/uint" } }
+        }
+      }
+    },
+    "compacted": {
+      "type": "object",
+      "required": ["type", "through_seq", "tokens_before", "tokens_after"],
+      "properties": {
+        "type": { "const": "compacted" },
+        "through_seq": { "$ref": "#/$defs/uint" },
+        "trimmed": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["call", "original_bytes", "head_bytes", "tail_bytes"],
+            "properties": {
+              "call": { "$ref": "#/$defs/id" },
+              "original_bytes": { "$ref": "#/$defs/uint" },
+              "head_bytes": { "$ref": "#/$defs/uint" },
+              "tail_bytes": { "$ref": "#/$defs/uint" }
+            }
+          }
+        },
+        "summary": {
+          "type": "object",
+          "required": ["text", "turns"],
+          "properties": { "text": { "type": "string" }, "turns": { "$ref": "#/$defs/ids" } }
+        },
+        "tokens_before": { "$ref": "#/$defs/uint" },
+        "tokens_after": { "$ref": "#/$defs/uint" }
+      }
+    }
+  }
+}
