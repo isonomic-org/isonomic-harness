@@ -2,7 +2,8 @@
 
 The binding source is the Milestone 0 brief. This file records the design as
 built and every interpretation the brief left open. The event schema has its
-own reference in `schema.md`; the host calls are in `host-api.md`.
+own reference in `schema.md`; the host calls are in `host-api.md`; the
+preset format is in `presets.md`.
 
 ## Crates
 
@@ -13,7 +14,7 @@ own reference in `schema.md`; the host calls are in `host-api.md`.
 | harness-loop | Turn and step driver, inbox, cancel, continue, retry, interceptors, context link, post-turn steps, subagent activation | core, log, tools, policy, preset, compact |
 | harness-tools | Tool trait, kinds, scoped registry, guards, batches, client lifecycle | core |
 | harness-toolkit | ask-user, todo, plan, time and context; service traits with fakes | core, tools |
-| harness-preset | TOML presets and validation; chat, assistant-panel, test | core |
+| harness-preset | TOML presets and validation; chat, assistant-panel, test | core, policy, toml |
 | harness-policy | Approvals, decision tokens, three-flag tracker, budgets, autonomy | core |
 | harness-compact | Tool-result trimming, profile-gated summaries | core, log |
 | harness-host | Registry, isolation, dispatch, enforcement, fan-out, crash isolation, recovery, purge; engine traits; MemoryHost | all of the above |
