@@ -16,7 +16,7 @@ keys are errors.
 | `name` | the id | Display name. |
 | `class` | `interactive` | `interactive`, `autonomous`, `delegated`. The host refuses the last two in Milestone 0. |
 | `[persona] name, prompt` | none | The persona's prompt is the first section of the system prompt. |
-| `[[prompt]] id, text` | none | More sections, in order. `system(preset)` is every section joined by a blank line. |
+| `[[prompt]] id, text` | none | More sections, in order. `system(preset)` is every section joined by a blank line. The section with the id `tools` is included only while the session offers tools; when the offered tools change that, a new `system(preset)` is recorded and later requests use it. |
 | `[model] id, max_output_tokens, reasoning, title_model` | `local:default`, 4096, `off`, none | `reasoning`: `off`, `low`, `medium`, `high`. `title_model`: the small model for titles on the Low profile. |
 | `[tools] allow, client` | `[]`, `true` | Engine and toolkit tools by name; whether the app's client tools are offered. |
 | `[limits] tokens, steps, wall_ms, cost_micros` | unlimited | Per turn. An app's preset may only tighten the host's ceiling. |
