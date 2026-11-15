@@ -21,6 +21,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "harness-policy"
+version = "0.1.0"
+dependencies = [
+ "harness-core",
+]
+
+[[package]]
 name = "harness-testkit"
 version = "0.1.0"
 dependencies = [
