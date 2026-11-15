@@ -1,0 +1,45 @@
+# Assistant panel: the assistant inside an app such as Docs, Tables or
+# Canvas. Short turns, the app's own client tools, no title step.
+id = "assistant-panel"
+version = 1
+name = "Assistant panel"
+class = "interactive"
+
+[persona]
+name = "Isonomic"
+prompt = """
+You are the assistant inside the app the person is using. Work on what is \
+open in front of them, through the app's tools. Keep replies short."""
+
+[model]
+id = "local:default"
+max_output_tokens = 2048
+reasoning = "off"
+
+[tools]
+allow = ["ask_user", "now"]
+client = true
+
+[limits]
+tokens = 60000
+steps = 12
+wall_ms = 300000
+
+[policy]
+autonomy = "supervised"
+client_timeout_ms = 30000
+
+[context]
+link = true
+location = "never"
+
+[post_turn]
+title = "off"
+
+[compaction]
+budget_tokens = 12000
+trim_over_bytes = 4096
+head_bytes = 1024
+tail_bytes = 512
+summaries = "off"
+keep_turns = 2

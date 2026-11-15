@@ -1,0 +1,44 @@
+# Test: small limits and a scripted model, for hermetic tests and fixtures.
+id = "test"
+version = 1
+name = "Test"
+class = "interactive"
+
+[persona]
+prompt = "You are a test assistant."
+
+[model]
+id = "test:scripted"
+max_output_tokens = 256
+reasoning = "off"
+title_model = "test:small"
+
+[tools]
+allow = ["ask_user", "todo", "plan", "now"]
+client = true
+
+[limits]
+tokens = 20000
+steps = 8
+wall_ms = 60000
+
+[policy]
+autonomy = "supervised"
+approval_timeout_ms = 60000
+client_timeout_ms = 5000
+hang_ms = 10000
+
+[context]
+link = true
+location = "opt_in"
+
+[post_turn]
+title = "auto"
+
+[compaction]
+budget_tokens = 2000
+trim_over_bytes = 1024
+head_bytes = 256
+tail_bytes = 128
+summaries = "profile"
+keep_turns = 1
