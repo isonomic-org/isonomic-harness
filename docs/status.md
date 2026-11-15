@@ -4,6 +4,22 @@ Newest first. Every deviation from the Milestone 0 brief is stated here.
 Entries for the Milestone 0 crates (step 0 through harness-host) are in
 `status-milestone-0.md`.
 
+## 2026-11-15 — review follow-up for #37: tests and notes
+
+Tests and documentation only; no code or contract change.
+
+- Tests added in `harness-host/tests/pending.rs`: two sessions holding the
+  same question id; a parent and its fork holding the same approval id and
+  the same call id; a result for a call id never issued.
+- Tests added in `harness-host/tests/updates.rs` for `next_update()`: a
+  lagging subscriber backfilling, a subscriber resuming mid-log, polling
+  then dropping, and the end after a purge.
+- `docs/host-api.md`, under "Pending ids", now states three things for
+  consumers: a result for a never-issued call id answers `Ok` with a
+  `tool.result.late` audit record; `list_approvals` is ordered by
+  (session, id); and shell-created sessions are owned by app id `shell`, so
+  the engine must never grant that id to an app.
+
 ## 2026-11-15 — pending work keyed by (session, id) (#30), `next_update` (#32)
 
 Host API change, labelled `needs-master`. No change to the session event

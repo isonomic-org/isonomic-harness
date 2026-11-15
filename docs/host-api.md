@@ -127,6 +127,22 @@ in harness-policy's `Approvals` index, and `decide_approval`,
 `PendingApproval` carries its `session`; `SessionSnapshot` lists ids for its
 own session only.
 
+Three things a consumer should know:
+
+- **A result for a call id that was never issued.** `client_tool_result`
+  for a session the caller owns answers `Ok` whenever that session has no
+  such open call, whether the call closed earlier or the id was never
+  issued. The result is dropped and a `tool.result.late` audit record is
+  written against the session. A consumer that wants `NotFound` for an id
+  it never issued must keep its own check.
+- **Order of `list_approvals`.** Pending approvals come back ordered by
+  (session, id), not by id alone and not by when they were requested. Sort
+  by `requested_at` for time order.
+- **Sessions the shell creates are owned by app id `shell`.** `Caller::owner`
+  gives the shell that id, so an app caller with the id `shell` would own
+  the shell's sessions. The engine must never grant the app id `shell` to
+  an app.
+
 ## Events
 
 - **Persist, then publish.** An event reaches subscribers only after
