@@ -12,6 +12,7 @@ publish = false
 [workspace.dependencies]
 serde = { version = "1", default-features = false, features = ["std", "derive"] }
 serde_json = { version = "1", default-features = false, features = ["std"] }
+toml = { version = "0.9", default-features = false, features = ["parse", "serde"] }
 harness-core = { path = "crates/harness-core" }
 harness-testkit = { path = "crates/harness-testkit" }
 harness-log = { path = "crates/harness-log" }
