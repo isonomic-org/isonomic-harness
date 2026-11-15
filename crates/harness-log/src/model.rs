@@ -24,6 +24,9 @@ pub struct ModelRequest {
     /// The last message is an assistant prefix the model continues.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub prefill: bool,
+    /// Privacy tags the model gateway routes on (`contains_memory`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub privacy: Vec<PrivacyTag>,
 }
 
 impl ModelRequest {
@@ -105,6 +108,16 @@ pub enum Part {
     Json {
         /// The data.
         value: Value,
+    },
+    /// A memory revision, by reference. A resolver turns it into the
+    /// memory's text; until then the reference itself is sent.
+    MemoryRef {
+        /// The memory.
+        id: MemoryId,
+        /// Its revision.
+        revision: u32,
+        /// Its salted hash.
+        hash: String,
     },
     /// A tool call the model made.
     ToolCall {
