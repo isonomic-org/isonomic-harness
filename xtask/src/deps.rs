@@ -26,6 +26,12 @@ const ALLOWED: &[&str] = &[
     "quote",
     "syn",
     "unicode-ident",
+    // TOML presets (harness-preset): parsing only, no file access.
+    "toml",
+    "toml_datetime",
+    "toml_parser",
+    "serde_spanned",
+    "winnow",
 ];
 
 /// Crates with a tighter rule: their only permitted direct dependencies.
