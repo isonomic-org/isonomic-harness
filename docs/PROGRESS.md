@@ -13,7 +13,7 @@ policy, presets, toolkit, compaction, host, report.
 | 5 | harness-tools | `tools-v1` | #6 open; CI blocked (Actions billing) |
 | 6 | harness-loop | | |
 | 7 | harness-policy | `policy-v1` | pull request open, stacked on #6 |
-| 8 | harness-preset | | |
+| 8 | harness-preset | `preset-v1` | pull request open, stacked on #7 |
 | 9 | harness-toolkit | | |
 | 10 | harness-compact | | |
 | 11 | harness-host and MemoryHost | | |
