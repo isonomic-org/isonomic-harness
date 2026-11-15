@@ -249,7 +249,7 @@ fn two_sessions_with_the_same_question_id_stay_apart() {
     ask(&m, &a, &s2);
     let open = |s: &SessionId| m.block_on(m.host.open_session(&a, s)).unwrap().questions;
     let id = open(&s1)[0].clone();
-    assert_eq!(open(&s2), [id.clone()]);
+    assert_eq!(open(&s2), std::slice::from_ref(&id));
 
     let answer = AnswerInput {
         selected: Vec::new(),
@@ -261,7 +261,7 @@ fn two_sessions_with_the_same_question_id_stay_apart() {
         .unwrap();
     assert_eq!((count(&m, &s1, "answer"), count(&m, &s2, "answer")), (0, 1));
     // The other session's question is still open, and takes its own answer.
-    assert_eq!(open(&s1), [id.clone()]);
+    assert_eq!(open(&s1), std::slice::from_ref(&id));
     assert!(open(&s2).is_empty());
     assert_eq!(
         m.block_on(m.host.answer_question(&a, &s2, &id, answer.clone())),
