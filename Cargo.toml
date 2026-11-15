@@ -14,6 +14,14 @@ serde = { version = "1", default-features = false, features = ["std", "derive"] 
 serde_json = { version = "1", default-features = false, features = ["std"] }
 harness-core = { path = "crates/harness-core" }
 harness-testkit = { path = "crates/harness-testkit" }
+harness-log = { path = "crates/harness-log" }
+harness-tools = { path = "crates/harness-tools" }
+harness-policy = { path = "crates/harness-policy" }
+harness-preset = { path = "crates/harness-preset" }
+harness-compact = { path = "crates/harness-compact" }
+harness-loop = { path = "crates/harness-loop" }
+harness-toolkit = { path = "crates/harness-toolkit" }
+harness-host = { path = "crates/harness-host" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
