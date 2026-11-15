@@ -2,6 +2,41 @@
 
 Newest first. Every deviation from the Milestone 0 brief is stated here.
 
+## 2026-11-15 — pending work keyed by (session, id) (#30), `next_update` (#32)
+
+Host API change, labelled `needs-master`. No change to the session event
+schema: `SCHEMA_VERSION`, `SCHEMA_REVISION`, the JSON Schema and every
+fixture are untouched.
+
+- Fixed: approval, question and tool-call ids are minted per session but
+  were indexed host-wide by id alone, so two sessions collided (one of two
+  approvals listed; deciding one decided the other app's). The host's three
+  indexes and harness-policy's `Approvals` are now keyed by (session, id).
+  `harness-host/tests/pending.rs` reproduces the collision for approvals
+  and for client tool calls.
+- Signatures that changed (the session goes before the id):
+  - `Host::decide_approval(caller, session, id, decision, token)`;
+  - `Host::answer_question(caller, session, id, answer)`;
+  - `Host::client_tool_result(caller, session, call, outcome)`;
+  - `Host::purge(caller, app)`: an app may name only itself (`NotFound`
+    otherwise); the shell may now purge any named app (it was refused);
+  - `ScopeResolver::verify_user_action(caller, token, session, approval)`:
+    a user-action token is for one approval of one session. Without this a
+    token minted for `apv_0001` in one session passed for `apv_0001` in
+    another session of the same caller;
+  - `Approvals::get(session, id)` and `Approvals::take(session, id)`;
+  - `MemoryHost::user_action(caller, session, approval)`.
+- Behaviour that changed: `client_tool_result` for a session the caller does
+  not own answers `NotFound` (it used to be dropped silently); a late result
+  is audited against the session named. `AlreadyDecided` is answered only to
+  a caller that can see the session.
+- Added: `Subscription::next_update()` and `Update::{Event, Delta}`. One
+  call awaits a durable event or a live delta, each delta before the
+  `assistant` event that replaces it. `next()` and `deltas()` are unchanged.
+  `harness-host/tests/updates.rs` covers it.
+- Decision: `next_update` yields one delta at a time, as #32 proposed, so
+  each keeps its place among the events.
+
 ## 2026-11-15 — live deltas wake a subscriber (#32)
 
 - Fixed: `Hub::delta` queued a `LiveDelta` on each feed without waking it,
