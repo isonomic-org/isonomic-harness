@@ -2,6 +2,56 @@
 
 Newest first. Every deviation from the Milestone 0 brief is stated here.
 
+## 2026-11-15 — harness-host and MemoryHost
+
+- The host feeds each session's sans-IO loop and owns every await. Outputs
+  go to the session's outbox and are flushed in order. Events are appended
+  to the `SessionStore`, then published. Model requests stream through
+  `ModelClient` under the `Executor`. Engine tools run from the session's
+  registry; client tools go through `ClientToolChannel`.
+- Isolation is checked on every call. Another app's sessions, presets and
+  artifacts answer `NotFound`; the shell sees everything.
+- Approvals need a verified user-action token (`ScopeResolver`). Views and
+  third-party code never decide. An ambiguous answer is a denial.
+- Budgets per session and per app come from `step.end` usage and stop a
+  turn with `BudgetStop`. Every tool call, result and approval leaves an
+  audit record, read through `activity` (shell only).
+- **Subscriptions** replay from the store, then switch to live events. Each
+  has a bounded live queue; when the queue fills, the subscriber is marked
+  lagging and catches up from the store. In a measured run of 100 turns, a
+  stalled subscriber did not slow the loop (about 97 ms against 101 ms
+  without one).
+- **Crash isolation:**
+  - A panic in a loop rebuilds that session from its log with
+    `Session::fail`: the turn is sealed as failed and the session marked
+    failed.
+  - A panic in a tool or model task is reported by the executor, and the
+    host seals the turn with `Input::Fail`.
+  - A hang is a turn with no progress for `hang_ms` while it is not waiting
+    on a person or a client app; the watchdog seals it the same way.
+  - Other sessions never notice.
+- **Recovery:** `recover()` loads every session; `Session::resume` seals
+  interrupted turns.
+- **Purge** cancels the app's in-flight turns, then deletes its logs and
+  blobs, closes its subscriptions and drops its pending approvals,
+  questions and client calls.
+- MemoryHost is built from in-memory blobs, clients and scopes, a scripted
+  model, a fixed locale, a runtime-free `MemorySpawner` and a
+  `ManualClock`, with the published test helpers.
+- Additions to harness-loop for this PR: `Input::Fail`, `Session::fail` and
+  `Session::failed`.
+- **Deviations (spelling or additive), listed in `host-api.md` under "As
+  built":**
+  - Calls take a resolved `Caller`.
+  - `decide_approval` takes an optional token.
+  - `get_artifact` takes no session.
+  - `SessionStore::list_meta` takes the owner only.
+  - There is a new `Locale` trait.
+  - There is a new `HostError::InvalidTools`.
+- `CreateOptions.location_opt_in` and `limits` are not persisted: a session
+  reloaded after a restart has no location and the preset's limits. Next
+  issue.
+
 ## 2026-11-15 — harness-toolkit
 
 - Milestone 0 tools: `ask_user` (options as text or `{id, label}`; the

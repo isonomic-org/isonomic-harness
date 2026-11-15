@@ -16,7 +16,7 @@ policy, presets, toolkit, compaction, host, report.
 | 8 | harness-preset | `preset-v1` | pull request open, stacked on #7 |
 | 9 | harness-toolkit | `toolkit-v1` | pull request open, stacked on #10 |
 | 10 | harness-compact | `compact-v1` | pull request open, stacked on #8 |
-| 11 | harness-host and MemoryHost | | |
+| 11 | harness-host and MemoryHost | `host-v1` | pull request open, stacked on #11 |
 | 12 | `cargo xtask report`, `smoke`; the gate | | |
 
 ## Gate
@@ -26,13 +26,13 @@ policy, presets, toolkit, compaction, host, report.
 | 1 | Replay reproduces every model request byte for byte, six fixtures | Loop tests: every request made equals its replay. Fixtures are script-recorded; re-recording through the loop is open |
 | 2 | Cancel mid-stream and mid-tool; resume; continue | passing locally (harness-loop tests) |
 | 3 | Fork at a turn boundary | passing locally (harness-loop tests) |
-| 4 | Rejected input, pre_tool denial, approvals, questions, tokens | loop and policy tests pass locally; token enforcement lands with harness-host |
+| 4 | Rejected input, pre_tool denial, approvals, questions, tokens | passing locally (harness-loop, harness-host tests) |
 | 5 | Three-flag rule, budget stop | passing locally (harness-loop tests) |
 | 6 | Compaction trims first; replay exact | passing locally (harness-compact, harness-loop tests) |
 | 7 | History rules, titles on both paths, context link logged | passing locally (harness-log, harness-loop tests) |
 | 8 | v0 migrates to v1; future version refused | passing (harness-log tests) |
 | 9 | Schema v1 frozen; JSON Schema and six fixtures published | published, not yet frozen |
 | 10 | No-I/O allow-list; harness-core depends on serde only | passing in CI from Step 0 |
-| 11 | MemoryHost isolation, purge, client-gone, crash isolation, fan-out | |
+| 11 | MemoryHost isolation, purge, client-gone, crash isolation, fan-out | passing locally (harness-host tests; slow subscriber measured) |
 | 12 | `cargo xtask report` budgets | |
 | 13 | Smoke test on a local model | |
