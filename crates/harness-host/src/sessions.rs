@@ -329,14 +329,14 @@ impl Host {
             let questions = st
                 .questions
                 .iter()
-                .filter(|(_, s)| **s == id)
-                .map(|(q, _)| q.clone())
+                .filter(|(s, _)| *s == id)
+                .map(|(_, q)| q.clone())
                 .collect();
             let awaiting_client = if meta.status == Status::AwaitingClient {
                 st.client_calls
                     .iter()
-                    .filter(|(_, s)| **s == id)
-                    .map(|(c, _)| c.clone())
+                    .filter(|(s, _)| *s == id)
+                    .map(|(_, c)| c.clone())
                     .collect()
             } else {
                 Vec::new()

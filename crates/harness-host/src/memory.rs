@@ -90,11 +90,11 @@ impl ClientToolChannel for MemoryClients {
 }
 
 /// In-memory scopes: tokens map to callers; user-action tokens are minted
-/// per (caller, approval).
+/// per (caller, session, approval).
 #[derive(Debug, Default)]
 pub struct MemoryScopes {
     tokens: Mutex<BTreeMap<CapabilityToken, Caller>>,
-    actions: Mutex<BTreeSet<(String, ApprovalId, UserActionToken)>>,
+    actions: Mutex<BTreeSet<(String, SessionId, ApprovalId, UserActionToken)>>,
 }
 
 impl MemoryScopes {
@@ -121,9 +121,15 @@ impl ScopeResolver for MemoryScopes {
         &self,
         caller: &Caller,
         token: &UserActionToken,
+        session: &SessionId,
         approval: &ApprovalId,
     ) -> bool {
-        lock(&self.actions).contains(&(caller_key(caller), approval.clone(), token.clone()))
+        lock(&self.actions).contains(&(
+            caller_key(caller),
+            session.clone(),
+            approval.clone(),
+            token.clone(),
+        ))
     }
 }
 
@@ -341,9 +347,19 @@ impl MemoryHost {
     }
 
     /// Mint a user-action token, as the UI broker does when a person acts.
-    pub fn user_action(&self, caller: &Caller, approval: &ApprovalId) -> UserActionToken {
-        let t = UserActionToken(format!("ua:{}:{approval}", caller_key(caller)));
-        lock(&self.scopes.actions).insert((caller_key(caller), approval.clone(), t.clone()));
+    pub fn user_action(
+        &self,
+        caller: &Caller,
+        session: &SessionId,
+        approval: &ApprovalId,
+    ) -> UserActionToken {
+        let t = UserActionToken(format!("ua:{}:{session}:{approval}", caller_key(caller)));
+        lock(&self.scopes.actions).insert((
+            caller_key(caller),
+            session.clone(),
+            approval.clone(),
+            t.clone(),
+        ));
         t
     }
 

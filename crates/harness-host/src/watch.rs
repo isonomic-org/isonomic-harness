@@ -46,23 +46,23 @@ impl Inner {
                     .push(audit("approval.request", r.call.clone(), r.summary.clone()));
             }
             Event::ApprovalDecision(d) => {
-                st.approvals.take(&d.approval);
-                st.decided.insert(d.approval.clone());
+                st.approvals.take(&slot.id, &d.approval);
+                st.decided.insert((slot.id.clone(), d.approval.clone()));
                 let detail = format!("{:?} ({:?})", d.decision, d.basis).to_lowercase();
                 st.audit.push(audit("approval.decision", None, detail));
             }
             Event::Question(q) => {
-                st.questions.insert(q.question.clone(), slot.id.clone());
+                st.questions.insert((slot.id.clone(), q.question.clone()));
             }
             Event::Answer(a) => {
-                st.questions.remove(&a.question);
+                st.questions.remove(&(slot.id.clone(), a.question.clone()));
             }
             Event::ToolCall(c) => {
                 st.audit
                     .push(audit("tool.call", Some(c.call.clone()), c.tool.clone()))
             }
             Event::ToolResult(r) => {
-                st.client_calls.remove(&r.call);
+                st.client_calls.remove(&(slot.id.clone(), r.call.clone()));
                 let detail = format!("{:?}", r.outcome).to_lowercase();
                 st.audit
                     .push(audit("tool.result", Some(r.call.clone()), detail));
@@ -113,8 +113,8 @@ impl Inner {
                 .list(None)
                 .into_iter()
                 .map(|p| p.session)
-                .chain(st.questions.values().cloned())
-                .chain(st.client_calls.values().cloned())
+                .chain(st.questions.iter().map(|(s, _)| s.clone()))
+                .chain(st.client_calls.iter().map(|(s, _)| s.clone()))
                 .collect()
         };
         for s in &slots {

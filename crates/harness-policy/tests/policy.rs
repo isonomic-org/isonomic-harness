@@ -195,6 +195,18 @@ fn approvals_book() {
     assert_eq!(gone.len(), 1);
     assert_eq!(gone[0].request.approval, ApprovalId::from("a1"));
     assert_eq!(book.drop_sessions(&[SessionId::from("s3")]).len(), 1);
-    assert!(book.take(&ApprovalId::from("a2")).is_some());
+    let (s2, a2) = (SessionId::from("s2"), ApprovalId::from("a2"));
+    assert!(book.get(&SessionId::from("s9"), &a2).is_none());
+    assert!(book.take(&s2, &a2).is_some());
     assert!(book.list(None).is_empty());
+
+    // Ids are minted per session: the same id in two sessions is two
+    // approvals.
+    book.add(pending("s1", "mail", "apv_0001", None));
+    book.add(pending("s2", "notes", "apv_0001", None));
+    assert_eq!(book.list(None).len(), 2);
+    let id = ApprovalId::from("apv_0001");
+    let taken = book.take(&SessionId::from("s1"), &id).unwrap();
+    assert_eq!(taken.owner, AppId::from("mail"));
+    assert_eq!(book.get(&s2, &id).unwrap().owner, AppId::from("notes"));
 }
