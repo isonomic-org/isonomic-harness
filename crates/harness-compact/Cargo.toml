@@ -1,0 +1,18 @@
+[package]
+name = "harness-compact"
+description = "Isonomic Harness compaction: trim large tool results first, then profile-gated summaries."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+harness-core.workspace = true
+harness-log.workspace = true
+
+[dev-dependencies]
+harness-testkit.workspace = true
+
+[lints]
+workspace = true
