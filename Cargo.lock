@@ -242,7 +242,14 @@ checksum = "8c3b93199df0ab874cdf0c6a94f0a0dc3423fe41f1cafb62b8bd7b1deb277aef"
 name = "xtask"
 version = "0.1.0"
 dependencies = [
+ "harness-core",
+ "harness-host",
+ "harness-log",
+ "harness-loop",
+ "harness-preset",
  "harness-testkit",
+ "harness-toolkit",
+ "harness-tools",
  "serde_json",
 ]
 
