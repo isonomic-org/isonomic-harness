@@ -2,6 +2,45 @@
 
 Newest first. Every deviation from the Milestone 0 brief is stated here.
 
+## 2026-11-15 — harness-loop
+
+- `Session` is a sans-IO state machine: `handle(now, Input) -> Vec<Output>`.
+  Outputs are events to persist then publish, live deltas, model requests,
+  tool runs and cancellations. The host does every await; no runtime is
+  named.
+- Each request is built with `request_for` right after its `step.start` is
+  written, so the request made and the request replayed are the same bytes.
+  Every loop test checks this for every request it made, along with
+  contiguous seqs and exactly one result per call.
+- Turns: an inbox queues input while a turn runs; the context link records
+  `system(context)` (date as `Sunday, 15 November 2026`, time zone,
+  language, and a location only when opted in and the preset allows it);
+  `pre_step` denying the first step rejects the input with no step.
+- Cancel and host budget stops work while streaming (the partial reply is
+  sealed, the attempt recorded) and during tools (every outstanding call
+  gets a result; pending approvals and questions are closed). Continue
+  extends a sealed partial reply with a prefill and is refused after
+  refusals, tool calls or complete replies. Transient errors retry the same
+  request in the same step; refusals and errors are attempts only.
+- Tools: calls are recorded with batch numbers, then guarded, judged by
+  policy (approvals with expiry, the three-flag rule from sticky flags),
+  passed through `pre_tool`, run, passed through `post_tool` and limited.
+  `ask` outputs become questions; answers become results. Client tools
+  whose app is gone put the session in *awaiting client* and time out
+  readably; late results are refused.
+- Compaction runs before each reply step (trims, then a summary step when
+  allowed, at most once a turn). The title step runs after the first
+  complete turn: a model step or the heuristic, by profile; a failed or
+  refused title step falls back to the heuristic.
+- Recovery: `Session::resume` seals an interrupted turn (open calls get
+  results, the step ends, `turn.end(interrupted)`) and starts nothing.
+  Forks start from the parent's resolved prefix.
+- Subagents: the `Activation` trait, `FakeActivation`, and
+  `check_delegation` (depth, tools and limits may only narrow).
+- Decision: the context link is built in, not a chain link, so its output
+  is always recorded the same way; the chain has `pre_step`, `request`,
+  `pre_tool`, `post_tool` and `turn_stopping`.
+
 ## 2026-11-15 — harness-compact
 
 - `plan` probes the reply step the loop is about to start: it rebuilds that
