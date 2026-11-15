@@ -6,7 +6,7 @@ file or `MANIFEST.json` differs from the generator.
 
 | Fixture | Sessions | Contents |
 | --- | --- | --- |
-| `chat-basic` | 3 | Three prompts, streaming, reasoning, a model title, a stop then continue, a refusal, and two forks after turn 1 (an edited prompt and a regenerated reply), so three siblings share that boundary |
+| `chat-basic` | 3 | Three prompts, streaming, reasoning, a model title, a stop then continue, a refusal, a saved memory (a `memory_ref` result and a `memory` event), and two forks after turn 1 (an edited prompt and a regenerated reply), so three siblings share that boundary |
 | `tool-heavy` | 1 | Intel profile: a transient model error retried, three parallel calls with one failing, a long result cut by the tool's output limit, an artifact created then updated, a heuristic title |
 | `approval` | 1 | An outward action approved in the shell's sheet, one denied by the owning app, an ambiguous answer treated as a denial, an ask-user question answered; location opted in |
 | `autonomous-run` | 2 | Two scheduled wakes; compaction that trims two long results and summarizes day 1; a fake delegated child session; a step-budget stop |

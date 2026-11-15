@@ -1,11 +1,11 @@
 {
   "fixtures": [
     {
-      "bytes": 12344,
+      "bytes": 15515,
       "committed": true,
-      "events": 51,
+      "events": 64,
       "file": "chat-basic.jsonl",
-      "fnv1a64": "353fe65ab24cb7fe",
+      "fnv1a64": "50d63506e75eb740",
       "name": "chat-basic",
       "sessions": 3
     },
