@@ -4,18 +4,21 @@
 //! processes. Library crates stay pure; `cargo xtask deps` enforces that.
 
 mod deps;
+mod fixtures;
 
 use std::process::ExitCode;
 
 const USAGE: &str = "usage: cargo xtask <command>
 
 commands:
-  deps   check the no-I/O dependency allow-list and source scan for every library crate";
+  deps       check the no-I/O dependency allow-list and source scan for every library crate
+  fixtures   regenerate fixtures/ (the six recorded fixtures and MANIFEST.json)";
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let result = match args.first().map(String::as_str) {
         Some("deps") => deps::run(),
+        Some("fixtures") => fixtures::run(),
         _ => {
             eprintln!("{USAGE}");
             return ExitCode::from(2);
