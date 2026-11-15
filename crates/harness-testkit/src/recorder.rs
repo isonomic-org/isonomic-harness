@@ -126,6 +126,8 @@ impl Recorder {
             cx,
             Event::System(System {
                 origin: SystemOrigin::Preset,
+                memory: Vec::new(),
+                memory_policy: None,
                 text: text.to_owned(),
                 context: None,
             }),
@@ -166,6 +168,8 @@ impl Recorder {
             cx,
             Event::System(System {
                 origin: SystemOrigin::Context,
+                memory: Vec::new(),
+                memory_policy: None,
                 text,
                 context: Some(RequestContext {
                     date,
@@ -206,6 +210,7 @@ impl Recorder {
             cx,
             Event::StepStart(StepStart {
                 purpose,
+                memory_policy: None,
                 model,
                 params: Params {
                     max_output_tokens,
@@ -425,7 +430,7 @@ pub fn block_len(block: &Block) -> u64 {
         Block::Text { text } | Block::Reasoning { text, .. } => text.len() as u64,
         Block::Attachment(a) => a.text.as_ref().map_or(0, |t| t.len() as u64),
         Block::Mention { label, .. } => label.len() as u64,
-        Block::Json { .. } => 64,
+        Block::Json { .. } | Block::MemoryRef(_) => 64,
         Block::Unknown(_) => 0,
     }
 }
