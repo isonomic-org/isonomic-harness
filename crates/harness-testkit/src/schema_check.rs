@@ -105,6 +105,18 @@ fn node(root: &Value, schema: &Value, v: &Value, path: &str, errors: &mut Vec<St
                     }
                 }
             }
+            "pattern" => {
+                if let (Some(s), Some(p)) = (v.as_str(), rule.as_str()) {
+                    match hex_pattern(p) {
+                        Some(n)
+                            if s.len() == n
+                                && s.bytes()
+                                    .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)) => {}
+                        Some(_) => errors.push(format!("{path}: does not match {p}")),
+                        None => errors.push(format!("{path}: unsupported pattern {p}")),
+                    }
+                }
+            }
             "minimum" => {
                 if let (Some(x), Some(min)) = (v.as_f64(), rule.as_f64()) {
                     if x < min {
@@ -129,6 +141,15 @@ fn node(root: &Value, schema: &Value, v: &Value, path: &str, errors: &mut Vec<St
             other => errors.push(format!("{path}: unsupported keyword {other}")),
         }
     }
+}
+
+/// The one pattern form the schema uses: `^[0-9a-f]{N}$` (lowercase hex of
+/// length N). Returns N.
+fn hex_pattern(p: &str) -> Option<usize> {
+    p.strip_prefix("^[0-9a-f]{")?
+        .strip_suffix("}$")?
+        .parse()
+        .ok()
 }
 
 fn is_type(v: &Value, t: &str) -> bool {
