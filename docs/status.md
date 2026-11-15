@@ -2,6 +2,24 @@
 
 Newest first. Every deviation from the Milestone 0 brief is stated here.
 
+## 2026-11-15 — harness-compact
+
+- `plan` probes the reply step the loop is about to start: it rebuilds that
+  request from the log (with harness-log's `request_for`) and compares its
+  estimate with the budget. Over budget, it trims tool results longer than
+  the threshold to head and tail, oldest first, until the request fits.
+- Still over budget, it summarizes only when the profile allows it (the
+  preset's `summaries_allowed`): the loop records the trims, runs a
+  `summary` step, and records `summarized` with its text. The summary
+  replaces completed turns not already summarized, except the most recent
+  `keep_turns`; a summary step summarizes every completed turn, so kept
+  turns are covered twice (verbatim and in the summary). Decision: this
+  matches the published summary request, which carries no turn list.
+- Over budget with nothing left to do, the step runs as is (the model's own
+  limit applies).
+- Tested: the `compacted` event recorded before a step reproduces the
+  planned estimate exactly when the step's request is rebuilt from the log.
+
 ## 2026-11-15 — harness-preset
 
 - TOML presets (`docs/presets.md`): persona and prompt sections, model,
