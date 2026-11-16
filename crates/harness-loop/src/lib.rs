@@ -92,13 +92,21 @@ impl Config {
     /// limit, or half the context when the limit is larger than that).
     pub fn compaction_budget(&self) -> u64 {
         let preset = self.preset.compaction.budget_tokens;
-        match self.context_tokens {
-            None => preset,
-            Some(context) => {
-                let reply = u64::from(self.preset.model.max_output_tokens).min(context / 2);
-                preset.min(context - reply)
-            }
-        }
+        self.window_tokens().map_or(preset, |w| preset.min(w))
+    }
+
+    /// The most a request may hold on the session's model: its context
+    /// less room for the reply. `None` when the context is not known. The
+    /// budget is soft; this is hard, and no request goes out over it.
+    pub fn window_tokens(&self) -> Option<u64> {
+        self.context_tokens.map(|c| c - self.reply_tokens())
+    }
+
+    /// Room kept in the context for a reply: the output limit, or half the
+    /// context when the limit is larger than that.
+    pub fn reply_tokens(&self) -> u64 {
+        let limit = u64::from(self.preset.model.max_output_tokens);
+        self.context_tokens.map_or(limit, |c| limit.min(c / 2))
     }
 
     /// The config with the session's picked model, if any, in place of the

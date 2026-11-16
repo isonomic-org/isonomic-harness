@@ -44,12 +44,24 @@ impl Session {
                 .compaction
                 .summaries_allowed(self.cfg.profile.as_ref()),
             keep_turns: self.cfg.preset.compaction.keep_turns,
+            context_tokens: self.cfg.context_tokens,
+            reply_tokens: self.cfg.reply_tokens(),
         };
         cfg.summaries &= !summarized;
         match harness_compact::plan(&self.events, &probe, &cfg) {
             Plan::Fits { .. } => {}
             Plan::Compact(c) => {
                 self.emit(None, Event::Compacted(c));
+            }
+            Plan::TooLarge { tokens, window } => {
+                // Nothing older is left to leave out: do not send it.
+                let reason = format!(
+                    "This message is too long for the model: it needs about \
+                     {tokens} tokens and the model takes {window}. Shorten it \
+                     and send it again."
+                );
+                let err = ErrorInfo::new("context.too_large", reason.clone());
+                return self.end_turn(TurnStop::Failed, Some(reason), Some(err), None);
             }
             Plan::Summarize {
                 trim,

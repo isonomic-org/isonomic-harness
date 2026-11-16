@@ -14,6 +14,18 @@
 //!
 //! A summary step summarizes every completed turn before the current one;
 //! the most recent `keep_turns` of them stay verbatim as well.
+//!
+//! The budget is soft: when nothing more is allowed, the step runs over
+//! it. The model's window ([`Config::window`]: its context less room for
+//! the reply) is hard: a request never goes out larger than it.
+//!
+//! 3. **Against the window, give up kept turns,** one at a time, so the
+//!    summary replaces more of them.
+//! 4. **Against the window, without a summary step** (not allowed, or its
+//!    own request would not fit): the oldest turns are replaced by a fixed
+//!    note, [`NOT_SHOWN`], with no model step. The log keeps them.
+//! 5. The current turn and the system prompt always stay. If they alone
+//!    pass the window, the plan is [`Plan::TooLarge`] and nothing is sent.
 
 use harness_core::*;
 use harness_log::history::request_for;
@@ -34,7 +46,30 @@ pub struct Config {
     pub summaries: bool,
     /// Recent completed turns never replaced by a summary.
     pub keep_turns: u32,
+    /// The model's context size. `None`: unknown, and only the budget
+    /// applies.
+    pub context_tokens: Option<u64>,
+    /// Room kept in the context for a reply.
+    pub reply_tokens: u64,
 }
+
+impl Config {
+    /// The most a reply step's request may hold: the context less room
+    /// for the reply.
+    pub fn window(&self) -> Option<u64> {
+        self.context_tokens
+            .map(|c| c.saturating_sub(self.reply_tokens))
+    }
+
+    /// The most a summary step's request may hold: the context less room
+    /// for the summary (at most half the context).
+    fn summary_window(&self) -> Option<u64> {
+        self.context_tokens.map(|c| c - SUMMARY_TOKENS.min(c / 2))
+    }
+}
+
+/// What stands in for turns left out of a request to fit the window.
+pub const NOT_SHOWN: &str = "Earlier messages are not shown to the model.";
 
 /// The reply step the loop is about to start.
 #[derive(Clone, Debug, PartialEq)]
@@ -68,6 +103,14 @@ pub enum Plan {
         turns: Vec<TurnId>,
         /// The estimate before any compaction.
         tokens_before: u64,
+    },
+    /// The system prompt and the current turn alone pass the model's
+    /// window. Nothing may be sent; the turn fails.
+    TooLarge {
+        /// The smallest the request can be made.
+        tokens: u64,
+        /// The window it has to fit.
+        window: u64,
     },
 }
 
@@ -193,23 +236,85 @@ pub fn plan(events: &[SessionEvent], probe: &Probe, cfg: &Config) -> Plan {
             return Plan::Compact(c);
         }
     }
-    let turns = if cfg.summaries {
+    let soft = if cfg.summaries {
         summarizable(events, &probe.turn, cfg.keep_turns)
     } else {
         Vec::new()
     };
-    if turns.is_empty() {
-        return if c.trimmed.is_empty() {
-            Plan::Fits { tokens: before }
-        } else {
-            Plan::Compact(c)
-        };
-    }
-    Plan::Summarize {
+    let summarize = |turns: Vec<TurnId>, c: Compacted| Plan::Summarize {
         trim: (!c.trimmed.is_empty()).then_some(c),
         turns,
         tokens_before: before,
+    };
+    // The window is hard. Without one, or under it, the budget is soft:
+    // summarize what the preset allows, or run the step as is.
+    let window = match cfg.window() {
+        Some(w) if c.tokens_after > w => w,
+        _ if soft.is_empty() => {
+            return if c.trimmed.is_empty() {
+                Plan::Fits { tokens: before }
+            } else {
+                Plan::Compact(c)
+            };
+        }
+        _ => return summarize(soft, c),
+    };
+    // A summary that replaces enough turns, keeping as many as fit. Its
+    // own request carries the turns it reads, so that has to fit too.
+    let room = cfg.summary_window().unwrap_or(window);
+    if cfg.summaries && summary_request(events, probe, &c) <= room {
+        for keep in (0..=cfg.keep_turns).rev() {
+            let turns = summarizable(events, &probe.turn, keep);
+            if turns.is_empty() {
+                continue;
+            }
+            let mut after = c.clone();
+            after.summary = Some(Summary {
+                text: "x".repeat(SUMMARY_BYTES),
+                turns: turns.clone(),
+            });
+            if estimate(events, probe, Some(&after)) <= window {
+                return summarize(turns, c);
+            }
+        }
     }
+    // No model step: leave out the oldest turns behind a fixed note.
+    let old = summarizable(events, &probe.turn, 0);
+    for n in 1..=old.len() {
+        c.summary = Some(Summary {
+            text: NOT_SHOWN.into(),
+            turns: old[..n].to_vec(),
+        });
+        c.tokens_after = estimate(events, probe, Some(&c));
+        if c.tokens_after <= window {
+            return Plan::Compact(c);
+        }
+    }
+    Plan::TooLarge {
+        tokens: c.tokens_after,
+        window,
+    }
+}
+
+/// A summary step's output limit, in tokens, and the bytes that come to.
+const SUMMARY_TOKENS: u64 = 512;
+const SUMMARY_BYTES: usize = 2048;
+
+/// The estimate for the summary step's own request, after `trims`.
+fn summary_request(events: &[SessionEvent], probe: &Probe, trims: &Compacted) -> u64 {
+    let step = StepId::from("probe");
+    let start = StepStart {
+        purpose: Purpose::Summary,
+        ..probe.start.clone()
+    };
+    let mut extra = Vec::new();
+    if !trims.trimmed.is_empty() {
+        extra.push((None, Event::Compacted(trims.clone())));
+    }
+    extra.push((Some(step.clone()), Event::StepStart(start)));
+    request_for(&with(events, probe, extra), &step)
+        .map(|r| r.estimate_tokens())
+        .unwrap_or(u64::MAX)
 }
 
 /// The `compacted` event that records a finished summary step. `events`

@@ -4,6 +4,42 @@ Newest first. Every deviation from the Milestone 0 brief is stated here.
 Entries for the Milestone 0 crates (step 0 through harness-host) are in
 `status-milestone-0.md`.
 
+## 2026-11-16 — the model's window is hard
+
+Closes the two limits listed in the entry below. Compaction logic only: no
+change to the event schema, the preset file format or the host API.
+
+- No request goes out larger than the model's window (its context less
+  room for the reply). The preset's own budget stays soft, as before: when
+  the context is unknown, or the request is over the budget but under the
+  window, nothing changes.
+- Against the window, where summaries are allowed: kept turns
+  (`keep_turns`) are given up one at a time, so the summary replaces the
+  fewest turns that make the request fit. The summary step's own request
+  has to fit as well (the context less its 512-token output); when it does
+  not, the next rule applies.
+- Against the window, with no summary step (the Intel profile, a turn that
+  already summarized, or a summary request that would not fit): the oldest
+  turns are replaced in the request by the fixed note "Earlier messages
+  are not shown to the model.", with no model step. It is recorded as an
+  ordinary `compacted` whose `summary.text` is the note, so replay is
+  unchanged. The log keeps every turn; only the request leaves them out.
+  The note replaces an earlier summary's text.
+- The system prompt and the current turn always stay. When they alone pass
+  the window, nothing is sent: the turn ends `failed` with error code
+  `context.too_large` and the reason "This message is too long for the
+  model: it needs about N tokens and the model takes M. Shorten it and send
+  it again." The next turn works; the oversized turn gives way like any
+  other.
+- Not covered: the title step's request, which is built from the first
+  message alone and is not planned.
+- Tests: `harness-loop/tests/window.rs` (Intel past the window; four kept
+  turns of 2,000 tokens against 8,192; giving up one kept turn to a
+  summary; a message that cannot fit; no known window).
+- harness-compact: `Config` gains `context_tokens` and `reply_tokens`,
+  `Plan` gains `TooLarge`, and `NOT_SHOWN` is the note. harness-loop:
+  `Config::window_tokens()` and `Config::reply_tokens()`.
+
 ## 2026-11-16 — chat preset: short answers; compaction follows the window
 
 From measurements on the Intel Mac: the first reply to a plain request ran

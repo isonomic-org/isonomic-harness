@@ -68,15 +68,18 @@ fn the_compaction_budget_fits_the_models_context() {
     );
 }
 
-/// Three long turns, then a fourth; the summary steps the session ran.
+/// Seven long turns; the summary steps the session ran.
 fn summary_models(context: Option<u64>) -> Vec<String> {
     let mut cfg = Config::new(preset("test"), None, vec![]).with_model(Some(PICKED));
+    // Room for a 1,024-token reply, and a budget well above these turns.
+    cfg.preset.model.max_output_tokens = 1024;
+    cfg.preset.compaction.budget_tokens = 5000;
     if let Some(c) = context {
         cfg = cfg.with_context(c);
     }
     let mut d = Driver::with(cfg);
     let long = "A sentence about gardens and weather. ".repeat(12);
-    for i in 0..4 {
+    for i in 0..7 {
         d.user(&format!("Question {i}. {long}"));
         // A summary step, when compaction needs one, comes before the reply.
         while d.s.events().iter().rev().find_map(|e| match &e.event {
@@ -104,11 +107,11 @@ fn summary_models(context: Option<u64>) -> Vec<String> {
 
 #[test]
 fn a_small_picked_model_is_summarized_for_and_by_itself() {
-    // Under the preset's budget of 2000 tokens, these turns need nothing.
+    // Under the budget of 5,000 tokens, these turns need nothing.
     assert!(summary_models(None).is_empty());
-    // On a model with a 700-token context they do, and the summary step
+    // On a model with a 2,400-token context they do, and the summary step
     // runs on the picked model.
-    let models = summary_models(Some(700));
+    let models = summary_models(Some(2400));
     assert!(!models.is_empty());
     assert!(models.iter().all(|m| m == PICKED), "{models:?}");
 }
