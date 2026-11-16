@@ -251,8 +251,10 @@ Differences from the first publication, all in spelling or additive:
   refused with `HostError::Model` (code `model.name`). It is recorded as
   `session.start`'s `model`, so resume and forks run on it. The log is the
   source: `SessionSummary.model` and `SessionMeta.model` follow it when a
-  session loads. Compaction keeps requests within the picked model's
-  `ModelCaps::context_tokens` less the output limit. The host does not
+  session loads.
+- **Compaction follows the model's window.** For every session, picked
+  model or not, the budget is the smaller of the preset's and
+  `ModelCaps::context_tokens` less the output limit; 0 means unknown. The host does not
   check that the caller may use the model; the engine does, first.
 - **Session ids** are never minted twice, across restarts and purges.
 - **`purge(caller, app)`** names the app. An app may name only itself; the

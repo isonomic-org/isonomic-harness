@@ -4,6 +4,42 @@ Newest first. Every deviation from the Milestone 0 brief is stated here.
 Entries for the Milestone 0 crates (step 0 through harness-host) are in
 `status-milestone-0.md`.
 
+## 2026-11-16 — chat preset: short answers; compaction follows the window
+
+From measurements on the Intel Mac: the first reply to a plain request ran
+to about 3,000 characters and 91 to 109 seconds.
+
+- The built-in chat preset is version 3. Its persona ends with: "Keep
+  answers short: lead with the answer and use at most a few short
+  paragraphs or a short list, unless the person asks for more detail."
+  `max_output_tokens` is 1024 (was 4096), a backstop; a reply cut there can
+  be continued.
+- The compaction budget follows the model's real window for every session,
+  not only one with a picked model: the host asks `ModelClient::caps` for
+  the model the session runs on and passes its `context_tokens` to the
+  loop. With the chat preset on an 8,192-token model the budget is 7,168
+  (the window less the 1,024-token reply), not 24,000. A model that
+  reports 0 leaves the preset's budget.
+- Tests: `harness-loop/tests/picked_model.rs` (the chat preset at 8,192,
+  with and without a picked model) and `harness-host/tests/window.rs` (a
+  chat session on an 8,192-token model compacts and every request fits;
+  on a roomy model nothing changes).
+- No change to the preset file format, the event schema or any signature.
+  Added for tests: `ScriptedModel::set_context`.
+- Two limits found, not fixed here; each needs a decision:
+  1. On the Intel profile the chat preset allows no summary step
+     (`summaries = "profile"`), so a plain chat has nothing to compact:
+     only tool results are trimmed. Once a conversation passes the window,
+     requests go out over it.
+  2. Where summaries are allowed, the preset keeps the last four turns
+     whole (`keep_turns = 4`). When those four and the current turn are
+     larger than the window, the request still goes out over it.
+  One way to close both: against the window (not the preset's budget),
+  let the planner replace the oldest turns with a fixed note and no model
+  step when summaries are off, and give up kept turns one by one when they
+  are on. It needs no schema change (`compacted` already carries a summary
+  and its turns).
+
 ## 2026-11-16 — picked model: review follow-ups
 
 No change to the event schema or to any host signature or type.

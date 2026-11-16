@@ -93,19 +93,18 @@ impl Inner {
         })
     }
 
-    /// `cfg` for a session with a picked model: the model's name, and its
-    /// context size so compaction fits it.
+    /// `cfg` for the model the session runs on: the picked model's name,
+    /// if there is one, and the context size of whichever model it is, so
+    /// compaction fits the model's real window and not only the preset's
+    /// budget.
     pub(crate) fn model_config(
         &self,
         cfg: harness_loop::Config,
         model: Option<&str>,
     ) -> harness_loop::Config {
-        match model {
-            Some(m) => cfg
-                .with_model(Some(m))
-                .with_context(self.deps.model.caps(m).context_tokens),
-            None => cfg,
-        }
+        let cfg = cfg.with_model(model);
+        let context = self.deps.model.caps(&cfg.preset.model.id).context_tokens;
+        cfg.with_context(context)
     }
 
     pub(crate) fn loop_config(
