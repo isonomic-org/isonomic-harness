@@ -13,7 +13,7 @@ use harness_policy::{Autonomy, Limits};
 use harness_preset::Ceiling;
 use harness_toolkit::{toolkit, FixedZone};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
-use std::sync::atomic::Ordering::SeqCst;
+use std::sync::atomic::{AtomicU64, Ordering::SeqCst};
 use std::sync::{Arc, Mutex};
 
 /// In-memory blobs.
@@ -165,6 +165,8 @@ impl Locale for FixedLocale {
 #[derive(Debug, Default)]
 pub struct ScriptedModel {
     replies: Mutex<VecDeque<Vec<Result<ModelEvent, ErrorInfo>>>>,
+    /// The context size it reports; 0 stands for the default, 32,768.
+    context: AtomicU64,
     /// Every request received, in order.
     pub requests: Mutex<Vec<ModelRequest>>,
 }
@@ -173,6 +175,11 @@ impl ScriptedModel {
     /// Queue a reply.
     pub fn push(&self, events: Vec<Result<ModelEvent, ErrorInfo>>) {
         lock(&self.replies).push_back(events);
+    }
+
+    /// The context size, in tokens, it reports for every model from now on.
+    pub fn set_context(&self, tokens: u64) {
+        self.context.store(tokens, SeqCst);
     }
 
     /// Queue a text reply.
@@ -216,7 +223,10 @@ impl ModelClient for ScriptedModel {
             prefill: true,
             reasoning: true,
             tools: true,
-            context_tokens: 32_768,
+            context_tokens: match self.context.load(SeqCst) {
+                0 => 32_768,
+                n => n,
+            },
         }
     }
 

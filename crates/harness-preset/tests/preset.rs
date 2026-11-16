@@ -37,12 +37,17 @@ fn reference_presets_validate_cleanly() {
         .system_prompt()
         .contains("\n\nUse a tool only when it helps."));
     assert!(!chat.system_prompt().contains('\\'));
-    assert_eq!(chat.reference.version, 2);
+    assert_eq!(chat.reference.version, 3);
+    assert_eq!(chat.model.max_output_tokens, 1024);
+    assert!(chat.prompt[0].text.trim_end().ends_with(
+        "Keep answers short: lead with the answer and use at most a few short \
+         paragraphs or a short list, unless the person asks for more detail."
+    ));
     // Without tools, the tools and approvals section is left out, and
     // nothing in what remains speaks of tools, approvals or asking back.
     let plain = chat.system_prompt_for(false);
     assert_eq!(plain, chat.prompt[0].text.trim_end());
-    for word in ["tool", "approv", "ask", "unclear"] {
+    for word in ["tool", "approv", "unclear", "clarif"] {
         assert!(!plain.to_lowercase().contains(word), "{word} in {plain}");
     }
     assert_eq!(chat.system_prompt_for(true), chat.system_prompt());

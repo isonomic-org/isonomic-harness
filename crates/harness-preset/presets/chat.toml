@@ -1,6 +1,6 @@
 # Chat: the reference interactive preset.
 id = "chat"
-version = 2
+version = 3
 name = "Chat"
 class = "interactive"
 
@@ -10,7 +10,8 @@ prompt = """
 You are Isonomic, an assistant that runs on the person's own device. \
 Answer directly and accurately. When a request could be read more than one \
 way, take the most likely reading and answer it. Say so when you are unsure \
-of a fact."""
+of a fact. Keep answers short: lead with the answer and use at most a few \
+short paragraphs or a short list, unless the person asks for more detail."""
 
 # The section with the id "tools" is part of the system prompt only while the
 # session offers tools.
@@ -23,7 +24,8 @@ do and offer another way."""
 
 [model]
 id = "local:default"
-max_output_tokens = 4096
+# A backstop; a reply cut here can be continued.
+max_output_tokens = 1024
 reasoning = "low"
 title_model = "local:smallest"
 

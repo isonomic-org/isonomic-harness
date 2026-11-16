@@ -53,8 +53,9 @@ pub struct Config {
     /// Tool output over this many bytes keeps head and tail.
     pub max_tool_output: usize,
     /// The context size, in tokens, of the model the session runs on, when
-    /// the host knows it. Set for a picked model: the preset's compaction
-    /// budget was chosen for the preset's model and may not fit this one.
+    /// the host knows it, picked or the preset's own. The preset's
+    /// compaction budget is an upper bound; the model's real window may be
+    /// smaller.
     pub context_tokens: Option<u64>,
 }
 

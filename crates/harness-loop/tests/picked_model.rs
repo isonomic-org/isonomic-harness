@@ -112,3 +112,19 @@ fn a_small_picked_model_is_summarized_for_and_by_itself() {
     assert!(!models.is_empty());
     assert!(models.iter().all(|m| m == PICKED), "{models:?}");
 }
+
+#[test]
+fn the_chat_presets_budget_follows_an_8192_token_window() {
+    let chat = Config::new(preset("chat"), Some(Profile::Intel), vec![]);
+    assert_eq!(chat.preset.compaction.budget_tokens, 24_000);
+    assert_eq!(chat.preset.model.max_output_tokens, 1024);
+    // No window known: the preset's budget.
+    assert_eq!(chat.compaction_budget(), 24_000);
+    // An 8,192-token window: the window less the reply's 1,024, whether
+    // the session runs on the preset's model or a picked one.
+    assert_eq!(chat.clone().with_context(8192).compaction_budget(), 7168);
+    let picked = chat.clone().with_model(Some(PICKED)).with_context(8192);
+    assert_eq!(picked.compaction_budget(), 7168);
+    // A window with room to spare leaves the preset's budget.
+    assert_eq!(chat.with_context(32_768).compaction_budget(), 24_000);
+}
