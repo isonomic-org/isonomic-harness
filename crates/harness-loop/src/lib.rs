@@ -52,6 +52,17 @@ pub struct Config {
     pub max_retries: u32,
     /// Tool output over this many bytes keeps head and tail.
     pub max_tool_output: usize,
+    /// The context size, in tokens, of the model the session runs on, when
+    /// the host knows it. Set for a picked model: the preset's compaction
+    /// budget was chosen for the preset's model and may not fit this one.
+    pub context_tokens: Option<u64>,
+}
+
+/// A picked model's name as it is recorded: trimmed, and `None` when blank.
+pub fn picked_model(name: Option<&str>) -> Option<String> {
+    name.map(str::trim)
+        .filter(|m| !m.is_empty())
+        .map(str::to_owned)
 }
 
 impl Config {
@@ -65,14 +76,36 @@ impl Config {
             limits,
             max_retries: 2,
             max_tool_output: 65_536,
+            context_tokens: None,
+        }
+    }
+
+    /// The config with the model's context size (0 means unknown).
+    pub fn with_context(mut self, tokens: u64) -> Self {
+        self.context_tokens = (tokens > 0).then_some(tokens);
+        self
+    }
+
+    /// What a request may hold before compaction: the preset's budget, and
+    /// no more than the model's context less room for the reply (the output
+    /// limit, or half the context when the limit is larger than that).
+    pub fn compaction_budget(&self) -> u64 {
+        let preset = self.preset.compaction.budget_tokens;
+        match self.context_tokens {
+            None => preset,
+            Some(context) => {
+                let reply = u64::from(self.preset.model.max_output_tokens).min(context / 2);
+                preset.min(context - reply)
+            }
         }
     }
 
     /// The config with the session's picked model, if any, in place of the
-    /// preset's reply model (`session.start`'s `model`).
+    /// preset's reply model (`session.start`'s `model`). A blank name is no
+    /// pick.
     pub fn with_model(mut self, model: Option<&str>) -> Self {
-        if let Some(m) = model {
-            self.preset.model.id = m.to_owned();
+        if let Some(m) = picked_model(model) {
+            self.preset.model.id = m;
         }
         self
     }
