@@ -110,6 +110,8 @@ fn cfg(budget: u64, summaries: bool) -> Config {
         tail_bytes: 200,
         summaries,
         keep_turns: 1,
+        context_tokens: None,
+        reply_tokens: 0,
     }
 }
 

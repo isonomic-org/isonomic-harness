@@ -72,7 +72,7 @@ Ids are opaque strings. Compare them; never parse them.
 | `title` | `title`, `source` (`model`, `heuristic`, `user`) | Renaming is another title event. |
 | `step.end` | `outcome`, `duration_ms`, `usage?` | |
 | `turn.end` | `stop` (`done`, `cancelled`, `failed`, `budget`, `rejected`, `refused`, `interrupted`), `steps`, `duration_ms`, `usage`, `reason?`, `error?`, `budget? {kind, limit, used}` | |
-| `compacted` | `through_seq`, `trimmed? [{call, original_bytes, head_bytes, tail_bytes}]`, `summary? {text, turns}`, `tokens_before`, `tokens_after` | |
+| `compacted` | `through_seq`, `trimmed? [{call, original_bytes, head_bytes, tail_bytes}]`, `summary? {text, turns}`, `tokens_before`, `tokens_after` | `summary.text` is a summary step's text, or the fixed note "Earlier messages are not shown to the model." when turns were left out to fit the model's window with no model step. |
 | `memory` | `op` (`created`, `revised`, `deleted`), `ref {id, revision, hash}`, `scope` (`user`, `app`, `agent`), `evidence_seq?` | One per change a session makes to the memory store. A reference, never the text. For `deleted`, `ref` is the revision that was current. |
 
 ### Blocks
