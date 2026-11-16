@@ -93,6 +93,21 @@ impl Inner {
         })
     }
 
+    /// `cfg` for a session with a picked model: the model's name, and its
+    /// context size so compaction fits it.
+    pub(crate) fn model_config(
+        &self,
+        cfg: harness_loop::Config,
+        model: Option<&str>,
+    ) -> harness_loop::Config {
+        match model {
+            Some(m) => cfg
+                .with_model(Some(m))
+                .with_context(self.deps.model.caps(m).context_tokens),
+            None => cfg,
+        }
+    }
+
     pub(crate) fn loop_config(
         &self,
         preset: &Preset,
@@ -138,9 +153,18 @@ impl Inner {
                     .preset(&meta.app, &meta.preset.id, Some(meta.preset.version))
                     .or_else(|| self.preset(&meta.app, &PresetId::from("chat"), None));
                 let preset = stored.and_then(|p| p.preset).ok_or(HostError::NotFound)?;
-                let cfg = self
-                    .loop_config(&preset, profile, None)
-                    .with_model(model.as_deref());
+                let model = harness_loop::picked_model(model.as_deref());
+                let cfg =
+                    self.model_config(self.loop_config(&preset, profile, None), model.as_deref());
+                // The log is the source for the model; a registry row that
+                // disagrees (written before the field, or edited) follows it.
+                let meta = if meta.model == model {
+                    meta
+                } else {
+                    let meta = SessionMeta { model, ..meta };
+                    self.deps.store.put_meta(&meta).await?;
+                    meta
+                };
                 let (lp, outs) = Session::resume(cfg.clone(), id.clone(), events, self.now());
                 let failed = lp.failed();
                 let slot = self.new_slot(meta, lp, cfg, false, &preset);
@@ -189,6 +213,24 @@ pub(crate) fn boundary(own: &[&SessionEvent], seq: Seq) -> bool {
     open == 0
 }
 
+/// The longest model name the host records, in bytes.
+const MAX_MODEL_NAME: usize = 200;
+
+/// A picked model's name as the host records it: trimmed; `None` when
+/// blank; refused when it is too long or holds a control character.
+fn picked(name: Option<&str>) -> Result<Option<String>, HostError> {
+    let model = harness_loop::picked_model(name);
+    match &model {
+        Some(m) if m.len() > MAX_MODEL_NAME || m.chars().any(char::is_control) => {
+            Err(HostError::Model(ErrorInfo::new(
+                "model.name",
+                "The model name is too long or not plain text.",
+            )))
+        }
+        _ => Ok(model),
+    }
+}
+
 pub(crate) fn refused(outs: &[Output]) -> Option<HostError> {
     outs.iter().find_map(|o| match o {
         Output::Refused(Refusal::SessionFailed) => Some(HostError::SessionFailed),
@@ -220,7 +262,8 @@ impl Host {
             if p.class != SessionClass::Interactive {
                 return Err(HostError::ClassNotSupported(p.class.clone()));
             }
-            let id = me.new_id();
+            let model = picked(opts.model.as_deref())?;
+            let id = me.new_id().await?;
             let now = me.now();
             let start = SessionStart {
                 class: p.class.clone(),
@@ -229,11 +272,12 @@ impl Host {
                 preset: p.reference.clone(),
                 parent: None,
                 profile: me.profile(),
-                model: opts.model.filter(|m| !m.trim().is_empty()),
+                model,
             };
-            let cfg = me
-                .loop_config(&p, start.profile.clone(), opts.limits)
-                .with_model(start.model.as_deref());
+            let cfg = me.model_config(
+                me.loop_config(&p, start.profile.clone(), opts.limits),
+                start.model.as_deref(),
+            );
             let model = start.model.clone();
             let (lp, outs) = Session::create(cfg.clone(), id.clone(), start, now);
             let meta = SessionMeta {
@@ -398,7 +442,7 @@ impl Host {
                     _ => None,
                 })
                 .ok_or(HostError::NotFound)?;
-            let child = me.new_id();
+            let child = me.new_id().await?;
             let now = me.now();
             let forked = Forked {
                 from: id.clone(),

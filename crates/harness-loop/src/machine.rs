@@ -95,6 +95,10 @@ impl Session {
         start: SessionStart,
         now: Millis,
     ) -> (Self, Vec<Output>) {
+        let start = SessionStart {
+            model: picked_model(start.model.as_deref()),
+            ..start
+        };
         let cfg = cfg.with_model(start.model.as_deref());
         let mut s = Self::blank(cfg, id, start.app.clone(), Vec::new());
         s.now = now;
@@ -150,6 +154,10 @@ impl Session {
         forked: Forked,
         now: Millis,
     ) -> (Self, Vec<Output>) {
+        let start = SessionStart {
+            model: picked_model(start.model.as_deref()),
+            ..start
+        };
         let cfg = cfg.with_model(start.model.as_deref());
         let mut s = Self::resume_state(cfg, id, start.app.clone(), parent.to_vec());
         s.now = now;

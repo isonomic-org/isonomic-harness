@@ -98,6 +98,9 @@ pub(crate) struct Inner {
     pub(crate) cfg: HostConfig,
     pub(crate) state: Mutex<State>,
     pub(crate) ids: AtomicU64,
+    /// Every session id in the store at first mint, and each one minted
+    /// since; never reused, even after a purge.
+    pub(crate) minted: Mutex<Option<BTreeSet<SessionId>>>,
 }
 
 /// The host. Cheap to clone; every clone is the same host.
@@ -138,6 +141,7 @@ impl Host {
                 app_meters: BTreeMap::new(),
             }),
             ids: AtomicU64::new(0),
+            minted: Mutex::new(None),
         });
         let watch = Arc::downgrade(&inner);
         let sleep_ms = inner.cfg.watchdog_ms.max(1);
@@ -446,10 +450,24 @@ impl Inner {
         }
     }
 
-    /// A fresh session id.
-    pub(crate) fn new_id(&self) -> SessionId {
-        let n = self.ids.fetch_add(1, SeqCst) + 1;
-        SessionId::new(format!("ses_{}_{n:04}", self.now()))
+    /// A fresh session id: the clock and a counter, skipping every id the
+    /// store already holds. The counter restarts with the host, so without
+    /// that check a restarted host could mint an id a second time.
+    pub(crate) async fn new_id(&self) -> Result<SessionId, HostError> {
+        if lock(&self.minted).is_none() {
+            let metas = self.deps.store.list_meta(None).await?;
+            let known: BTreeSet<SessionId> = metas.into_iter().map(|m| m.id).collect();
+            lock(&self.minted).get_or_insert(known);
+        }
+        let mut minted = lock(&self.minted);
+        let seen = minted.get_or_insert_with(BTreeSet::new);
+        loop {
+            let n = self.ids.fetch_add(1, SeqCst) + 1;
+            let id = SessionId::new(format!("ses_{}_{n:04}", self.now()));
+            if seen.insert(id.clone()) {
+                return Ok(id);
+            }
+        }
     }
 
     /// The tools a preset offers in a session, and the registry behind them.

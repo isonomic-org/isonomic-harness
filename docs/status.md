@@ -4,6 +4,41 @@ Newest first. Every deviation from the Milestone 0 brief is stated here.
 Entries for the Milestone 0 crates (step 0 through harness-host) are in
 `status-milestone-0.md`.
 
+## 2026-11-16 — picked model: review follow-ups
+
+No change to the event schema or to any host signature or type.
+
+- Compaction fits the picked model. The budget was the preset's
+  `budget_tokens` whatever the model. For a session with a picked model the
+  host now passes that model's `ModelCaps::context_tokens` to the loop, and
+  the budget is the smaller of the preset's and the context less room for
+  the reply (the preset's `max_output_tokens`, or half the context when
+  that is smaller). Sessions without a pick are unchanged. `ModelCaps` has
+  no output limit of its own, so the request's limit stands in for it.
+- The model name is trimmed, and the host refuses one over 200 bytes or
+  with a control character: `HostError::Model`, code `model.name`, and no
+  session is created. Reusing `HostError::Model` avoids a new error
+  variant.
+- `Session::create` and `Session::fork` trim the name too and drop a blank
+  one, so `"model":""` is never written.
+- The log is the source for a session's model. When a session loads and
+  its registry row names a different model, or none, the row is rewritten
+  from `session.start`. `list_sessions` reads rows without loading, so a
+  wrong row shows until the session loads; `recover` loads them all.
+- Session ids: the counter restarts with the host, so a restarted host
+  could mint an id that exists (seen with a fork after a restart, which
+  replaced the parent's slot). The host now reads the store's ids once, at
+  its first mint, and never mints one it has seen, also after a purge.
+- Tests: `harness-host/tests/model.rs` (a restart whose registry rows lack
+  the model, a fork after a restart, name bounds, the Low profile with a
+  `title_model`) and `harness-loop/tests/picked_model.rs` (blank and padded
+  names, the budget, a summary step on the picked model).
+- Correction to the consumer notes for the picked model: Chat does build a
+  `SessionStart` literal, so it needs `model: None` when it moves its pin
+  past `61438c9`.
+- Added to harness-loop, not required of anyone: `Config.context_tokens`,
+  `Config::with_context`, `Config::compaction_budget`, `picked_model`.
+
 ## 2026-11-15 — a picked model for a session
 
 Schema and host API change, labelled `needs-master`. For the model picker.

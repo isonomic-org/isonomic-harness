@@ -34,7 +34,7 @@ impl Session {
             start: start.clone(),
         };
         let mut cfg = harness_compact::Config {
-            budget_tokens: self.cfg.preset.compaction.budget_tokens,
+            budget_tokens: self.cfg.compaction_budget(),
             trim_over_bytes: self.cfg.preset.compaction.trim_over_bytes,
             head_bytes: self.cfg.preset.compaction.head_bytes,
             tail_bytes: self.cfg.preset.compaction.tail_bytes,

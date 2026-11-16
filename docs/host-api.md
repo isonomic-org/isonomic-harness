@@ -247,10 +247,14 @@ Differences from the first publication, all in spelling or additive:
   `(session, id)`.
 - **A picked model.** `CreateOptions.model: Option<String>` replaces the
   preset's reply model for that session (`None` or blank: the preset's).
-  It is recorded as `session.start`'s `model`, so resume and forks run on
-  it, and shown as `SessionSummary.model` and `SessionMeta.model`. The
-  host only carries the name; whether the caller may use that model is the
-  engine's check before it calls `create_session`.
+  The name is trimmed; one over 200 bytes or with a control character is
+  refused with `HostError::Model` (code `model.name`). It is recorded as
+  `session.start`'s `model`, so resume and forks run on it. The log is the
+  source: `SessionSummary.model` and `SessionMeta.model` follow it when a
+  session loads. Compaction keeps requests within the picked model's
+  `ModelCaps::context_tokens` less the output limit. The host does not
+  check that the caller may use the model; the engine does, first.
+- **Session ids** are never minted twice, across restarts and purges.
 - **`purge(caller, app)`** names the app. An app may name only itself; the
   shell may name any app.
 - **`Subscription::next_update()`** and the `Update` enum: one call that
