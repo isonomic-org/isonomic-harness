@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! Driving sessions: send, continue, cancel, approvals, questions, client
 //! tools, subscriptions and purge (`docs/host-api.md`).
 

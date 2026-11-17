@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! The schema's string enums. Every one is open: a value from a newer
 //! revision deserializes as `Other` instead of failing.
 

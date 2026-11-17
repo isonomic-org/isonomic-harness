@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! Isonomic Harness loop: one session's turn and step driver.
 //!
 //! The loop is **sans-IO**. [`Session::handle`] takes the time and one

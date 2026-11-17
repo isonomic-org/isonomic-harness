@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! Continue on a first turn whose title step has already run: the title's
 //! `assistant` entry is not the turn's reply.
 

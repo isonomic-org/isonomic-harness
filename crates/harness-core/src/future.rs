@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! Runtime-agnostic future and stream types, std only.
 //!
 //! The harness never names an async runtime. Traits return these boxed

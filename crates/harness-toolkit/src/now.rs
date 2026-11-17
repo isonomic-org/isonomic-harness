@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! `now`: the current date and time in the person's time zone. The engine
 //! knows the zone and its offset at a moment; the tool only formats.
 

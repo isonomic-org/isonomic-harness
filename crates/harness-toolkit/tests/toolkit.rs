@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! The Milestone 0 toolkit and the service fakes.
 
 use harness_core::future::BoxFuture;

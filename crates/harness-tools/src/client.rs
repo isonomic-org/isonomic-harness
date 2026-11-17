@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! The client-tool lifecycle: calls run by an app that may go away.
 //!
 //! When the app is gone its calls get a deadline (the session is *awaiting

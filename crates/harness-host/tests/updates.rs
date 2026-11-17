@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! `Subscription::next_update`: durable events and live deltas from one
 //! call, each delta before the `assistant` event that replaces it.
 

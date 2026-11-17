@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! harness-log against the fixtures: JSONL, migrations and the history rules.
 
 use harness_core::future::fnv1a64;

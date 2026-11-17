@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! Policy: deny by default, the three-flag rule, deciders, budgets, the approvals book.
 
 use harness_core::*;

@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! Turns and steps: the context link, titles on both paths, cancel,
 //! continue, refusals, retries, rejected input, budgets, resume and forks.
 

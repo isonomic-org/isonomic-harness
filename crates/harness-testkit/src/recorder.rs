@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! A deterministic recorder for session logs.
 //!
 //! It assigns sequence numbers, ids and timestamps, synthesizes the compact

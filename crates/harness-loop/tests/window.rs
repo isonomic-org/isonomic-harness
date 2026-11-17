@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! The model's window is hard: no request goes out larger than it. Older
 //! turns give way, the current turn and the system prompt never do, and a
 //! message that cannot fit fails its turn instead of being sent.

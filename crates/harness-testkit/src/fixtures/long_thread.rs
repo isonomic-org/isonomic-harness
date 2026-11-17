@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! long-thread: one interactive session of exactly 10,000 events. Mostly
 //! short exchanges, a tool call every tenth turn, request context every third
 //! turn and a title after the first. Generated, not committed.

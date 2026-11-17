@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! Isonomic Harness presets.
 //!
 //! A preset is a TOML file that composes a session: persona and prompt

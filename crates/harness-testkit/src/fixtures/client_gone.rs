@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! client-gone: an assistant panel calls a client tool whose app has
 //! disconnected. The session moves to awaiting client, the call times out
 //! as a readable failure, the reply explains, and when the app reconnects

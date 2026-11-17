@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! A driver for loop tests: feeds inputs, records requests and tool runs,
 //! and checks the invariants every scenario must keep.
 #![allow(dead_code)]

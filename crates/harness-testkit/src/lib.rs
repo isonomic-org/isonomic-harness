@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! Isonomic Harness testkit.
 //!
 //! Hermetic test support: a manual clock, a deterministic recorder for

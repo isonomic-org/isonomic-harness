@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! A small JSON Schema checker for the event schema.
 //!
 //! It supports exactly the keywords `session-event.v1.json` uses and fails on

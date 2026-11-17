@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! `cargo xtask replay [fixture]`: rebuild every model request of every
 //! fixture from its log alone, through the JSONL interchange format.
 

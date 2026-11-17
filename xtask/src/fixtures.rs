@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! `cargo xtask fixtures`: regenerate `fixtures/`.
 //!
 //! Writes every fixture as a JSONL generation and `fixtures/MANIFEST.json`.

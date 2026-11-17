@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! Presets: the reference presets, diagnostics, profile paths and ceilings.
 
 use harness_core::*;

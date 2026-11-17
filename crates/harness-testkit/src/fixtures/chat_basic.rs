@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! chat-basic: three prompts with streaming and reasoning, a model title, a
 //! stop then continue, a refusal, a saved memory (a `memory_ref` result and
 //! a `memory` event), and two forks after the first turn (an edited prompt

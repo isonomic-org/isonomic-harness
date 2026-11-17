@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! Isonomic Harness standard tools, one wave at a time.
 //!
 //! Milestone 0 ships four engine tools: [`AskUser`], [`Todo`], [`PlanTool`]

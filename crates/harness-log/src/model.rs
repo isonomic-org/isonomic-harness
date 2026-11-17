@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! What the harness sends to a model and what comes back.
 //!
 //! A [`ModelRequest`] is derived from the log alone and has one canonical

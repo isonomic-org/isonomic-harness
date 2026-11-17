@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! `cargo xtask smoke`: one two-step turn with a tool call, through the
 //! loop, against a local model server: the llama.cpp server that
 //! isonomic-inference's local provider launches (OpenAI-style chat

@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! The TOML file as written. Every section is optional and has defaults;
 //! unknown keys are errors. Values are checked in `validate`.
 

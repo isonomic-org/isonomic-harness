@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! A picked model: its name as recorded, and compaction that fits its
 //! context instead of the preset's budget.
 

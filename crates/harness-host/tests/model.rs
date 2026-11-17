@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! A session created with a picked model runs on it: recorded in
 //! `session.start`, used by every request, kept across a restart and a
 //! fork, and shown in the summary.

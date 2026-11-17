@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! Compaction follows the model's real context window, whether the session
 //! runs on its preset's model or on a picked one. The chat preset's budget
 //! is 24,000 tokens; on a model that reports 8,192 the host must compact

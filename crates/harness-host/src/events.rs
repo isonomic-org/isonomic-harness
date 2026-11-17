@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! Fan-out. Persist, then publish: an event reaches subscribers only after
 //! the store accepted it. Each subscriber has a bounded live queue; when it
 //! fills, the subscriber is marked lagging and reads from the store until it

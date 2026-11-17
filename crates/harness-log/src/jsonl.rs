@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! JSONL generations: the interchange format for export, import and tests.
 //!
 //! A generation is one UTF-8 text: a header line naming the format and

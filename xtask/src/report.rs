@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! `cargo xtask report`: the gate's performance budgets.
 //!
 //! - Runtime overhead per step on a 200-event session: under 1 ms. Measured

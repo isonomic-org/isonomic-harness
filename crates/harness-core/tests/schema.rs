@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! The schema's Rust types against JSON: round trips, forward compatibility
 //! and agreement with the JSON Schema.
 

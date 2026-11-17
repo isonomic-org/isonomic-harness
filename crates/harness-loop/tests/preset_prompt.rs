@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! The chat preset's tools and approvals section is in the system prompt
 //! only while the session offers tools.
 

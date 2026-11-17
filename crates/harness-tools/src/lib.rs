@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! Isonomic Harness tools.
 //!
 //! A tool has a name, a JSON Schema input, a concurrency class, declared

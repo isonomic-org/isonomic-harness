@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! autonomous-run: an agent woken by a schedule on two days. On the second
 //! run its history outgrows the budget, so it compacts (trims two long
 //! results, then summarizes the first run), delegates a task to a fake

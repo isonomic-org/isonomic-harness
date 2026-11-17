@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! Pending approvals, across sessions. Approval ids are minted per session,
 //! so an approval is named by its session and its id together.
 
