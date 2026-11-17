@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! Approval, question and call ids are minted per session, so two sessions
 //! hold the same ids. The host keeps them apart by (session, id).
 

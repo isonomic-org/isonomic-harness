@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! The fixtures against the schema, the committed files and the manifest.
 
 use harness_core::*;

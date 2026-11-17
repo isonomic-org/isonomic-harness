@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! The host's arguments, results and errors (`docs/host-api.md`).
 
 use harness_core::*;

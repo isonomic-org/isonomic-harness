@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! Event payloads. Optional fields are left out when empty, so a log carries
 //! only what happened.
 

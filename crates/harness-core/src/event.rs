@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! The session event: the platform's main contract.
 //!
 //! An append-only log of these events is the only record of what the model

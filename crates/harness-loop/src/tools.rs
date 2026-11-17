@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! Tool calls inside a step: guards, policy and approvals, the pre_tool and
 //! post_tool links, questions, batches, client tools whose app is gone, and
 //! sealing on cancel. Every call gets exactly one recorded result.

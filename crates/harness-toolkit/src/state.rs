@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! `todo` and `plan`: per-session lists. Their state is a pure function of
 //! the session's own calls, so after a restart [`Todo::replay`] and
 //! [`PlanTool::replay`] rebuild it from the log.

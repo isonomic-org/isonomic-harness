@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! The storage trait and an in-memory implementation.
 
 use harness_core::future::{ready, BoxFuture};

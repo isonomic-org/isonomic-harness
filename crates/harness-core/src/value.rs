@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! A JSON value, so tool inputs and open-ended fields need no JSON library.
 //!
 //! Objects keep their keys sorted, so serialization is deterministic and a

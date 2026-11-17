@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! The live channel: token deltas while a reply streams. Not stored, lossy,
 //! separate from durable events. The durable `assistant` event that follows
 //! is the truth; a consumer drops its deltas when that event arrives.

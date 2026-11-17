@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! Compaction: trims first (oldest first), summaries only when allowed, and
 //! the recorded event reproduces the planned request exactly.
 

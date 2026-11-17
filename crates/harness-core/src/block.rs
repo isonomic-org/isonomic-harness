@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! Content blocks: the parts of user input, model replies and tool results.
 
 use crate::ids::{BlobId, MemoryId};

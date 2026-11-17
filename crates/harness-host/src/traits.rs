@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! The traits the engine implements. Each has an in-memory implementation
 //! in `memory.rs`. `SessionStore` is harness-log's.
 

@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! Session calls: create, list, open, fork, archive, rename; and loading
 //! sessions from the store. Every call checks the caller's scope first;
 //! another app's ids answer `NotFound`.

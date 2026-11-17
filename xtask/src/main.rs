@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! `cargo xtask <command>`: repository tasks.
 //!
 //! xtask is the only crate in this repository allowed to touch files and

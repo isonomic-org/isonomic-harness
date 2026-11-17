@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! Parsing and validation: every problem becomes a diagnostic with a path.
 
 use crate::file::PresetFile;

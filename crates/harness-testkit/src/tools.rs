@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! The tools the fixtures offer the model: the Milestone 0 toolkit tools and
 //! fake tools with fixed outputs.
 

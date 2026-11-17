@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! Isonomic Harness core types.
 //!
 //! The session event schema, ids, content blocks, session classes, errors and

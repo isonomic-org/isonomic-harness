@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! The context link: the date, the language and, only when the person
 //! opted in, a location, added to each turn that has user input and
 //! recorded as `system(context)`.

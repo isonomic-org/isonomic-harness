@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! Ids. Every id is an opaque string chosen by the host; consumers compare
 //! ids and never parse them.
 

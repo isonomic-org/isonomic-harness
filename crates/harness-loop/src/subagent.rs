@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! Subagent activation. A delegating tool asks an [`Activation`] to start a
 //! child session for a task: a local child now, external execution in an
 //! agent machine later. Milestone 0 ships the trait and a fake; the real

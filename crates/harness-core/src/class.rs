@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! Session classes. The class sets defaults for policy, budgets and wake-up;
 //! it never forks the loop.
 

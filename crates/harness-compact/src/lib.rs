@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! Isonomic Harness compaction.
 //!
 //! Before a reply step, the loop asks [`plan`] whether the request it is

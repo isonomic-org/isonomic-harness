@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! Model history, derived from the log alone.
 //!
 //! [`request_for`] rebuilds the request a step made from the events before

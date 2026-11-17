@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! Tool calls: batches, guards, approvals, the three-flag rule, questions,
 //! pre_tool denials, cancel mid-tool, client-gone, and compaction.
 

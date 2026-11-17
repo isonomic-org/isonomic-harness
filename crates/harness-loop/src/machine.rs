@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! The session state machine: construction, inputs, turns, continue and
 //! the title step. Steps and the model are in `steps.rs`, stopping and
 //! recovery in `stop.rs`, tool calls in `tools.rs`.

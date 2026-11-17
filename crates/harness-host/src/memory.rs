@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! `MemoryHost`: a `Host` over in-memory implementations of every trait,
 //! with a runtime-free spawner and a manual clock. The SDK's testkit
 //! exposes it as its in-memory host.

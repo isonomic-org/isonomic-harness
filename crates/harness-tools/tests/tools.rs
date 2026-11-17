@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! The registry, guards, batches, output limits and the client lifecycle.
 
 use harness_core::future::{ready, BoxFuture};

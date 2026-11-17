@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! The host core: session slots, feeding the loop, persist-then-publish,
 //! dispatch of model requests and tools, faults, the watchdog and budgets.
 

@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! Stopping: cancel and budget stops at every await point, and sealing a
 //! turn that a restart interrupted.
 

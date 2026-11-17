@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! Service traits for the tools of later waves, each with an in-memory
 //! fake. The engine implements them; secrets never pass through them:
 //! tools receive handles.

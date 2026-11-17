@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! approval: an outward action approved in the shell's sheet, one denied by
 //! the owning app, an ambiguous answer treated as a denial, and an ask-user
 //! question answered. The person opted in to location.

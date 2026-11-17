@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! Presets, artifacts, activity, and the engine-only calls: recovery,
 //! client connection changes and shutdown.
 

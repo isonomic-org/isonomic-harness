@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! Gate 11 and the host calls, against MemoryHost.
 
 use harness_core::*;

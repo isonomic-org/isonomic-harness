@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! The `memory` event: one per change a session makes to the memory store.
 //! It holds a reference, never the text.
 

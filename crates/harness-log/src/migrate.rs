@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! One-step migrations between schema versions.
 //!
 //! Version 0 is the pre-release draft: `kind` instead of `type`, underscores

@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! Input guards: a call whose input does not fit its tool never runs; the
 //! model gets a readable reason instead.
 

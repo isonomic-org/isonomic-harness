@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! Budgets: tokens, steps, wall time and cost. A budget is checked before a
 //! step starts, so a turn stops cleanly between steps. The host keeps one
 //! meter per turn, per session and per app, each with its own limits.

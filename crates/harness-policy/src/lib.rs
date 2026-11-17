@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! Isonomic Harness policy.
 //!
 //! Pure rules; harness-host enforces them, and nothing else does.

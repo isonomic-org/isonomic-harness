@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! Steps: budgets, links and compaction before each reply step, the
 //! request, streamed model events, retries and failures.
 

@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! In-process execution: a panic-catching executor over any `Spawner`, and
 //! a runtime-free spawner for tests and the SDK's in-memory host.
 

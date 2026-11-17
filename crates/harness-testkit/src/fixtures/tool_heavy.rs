@@ -1,3 +1,6 @@
+// Copyright 2026 Anud Inc.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! tool-heavy: on the Intel profile, a transient model error retried, three
 //! parallel calls with one failing, a long result cut by the tool's output
 //! limit, an artifact created then updated, and a heuristic title.
