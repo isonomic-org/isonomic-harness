@@ -42,6 +42,6 @@ cargo xtask report    # overhead per step and replay time against the budgets
 model server (`ISONOMIC_SMOKE_URL`, default `http://127.0.0.1:8080`; bearer
 secret in `ISONOMIC_SMOKE_KEY`) and prints a block to paste back.
 
-CI calls the shared `rust-ci.yml` in `isonomic-org/.github` with `--locked`.
+CI calls `.github/workflows/rust-ci.yml`, the shared checks every public Isonomic repository keeps a copy of, with `--locked`.
 Every source and doc file stays under 20 KB. Requests for this repository go
 in `docs/requests.md`.
