@@ -7,15 +7,18 @@
 //! and [`Now`] (time and context). The service traits for later waves are
 //! defined now, each with a fake, in [`services`]: artifacts (wave 3), web
 //! search and URL reading through [`services::Egress`] (wave 4), memory
-//! (after its spec is approved) and connections (later). No tool for them
-//! ships yet.
+//! (after its spec is approved) and connections. The connected-app tools
+//! ship over [`services::Connections`]: [`connected`] gives `connections`,
+//! `connection_read` and `connection_act`.
 //!
 //! Tools never panic: bad input is a readable error result.
 
+mod connected;
 mod now;
 pub mod services;
 mod state;
 
+pub use connected::{connected, CallConnection, ListConnections, RESULT_CAP};
 pub use now::{FixedZone, LocalZone, Now};
 pub use state::{PlanTool, Todo};
 

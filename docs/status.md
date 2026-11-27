@@ -4,15 +4,32 @@ Newest first. Every deviation from the Milestone 0 brief is stated here.
 Entries for the Milestone 0 crates (step 0 through harness-host) are in
 `status-milestone-0.md`.
 
-## 2026-11-27 — Chat offers connected apps
+## 2026-11-27 — Connected-app tools in the toolkit
 
-The chat preset (version 4) allows two more engine tools, `app_read` and
-`app_act`, through which the engine offers the person's connected apps:
-`app_read` for calls that only read, `app_act` for calls that change
-something, so an approval can be asked for those alone. The harness ships
-neither tool; a host that registers no tool by those names offers nothing
-new, and the tools paragraph of the prompt names them. No change to the
-event schema, the preset file format or the host API.
+Replaces the entry of the same day that had the chat preset allow
+`app_read` and `app_act`, tools the engine would have built itself. The
+plan puts connected-app tools in harness-toolkit over the
+`services::Connections` trait, so the toolkit now ships them:
+
+- `connections` lists the owner's connections, by handle and label, with
+  each operation's name, description, input schema and whether it only
+  reads. Effect: reads private data.
+- `connection_read` runs an operation that only reads. Effects: reads
+  private data, ingests untrusted content. Policy lets it run, until the
+  three-flag rule applies.
+- `connection_act` runs any other operation. Effects as above plus acts
+  outward, so a supervised session asks the person every time.
+- Each call names a connection the owner holds and an operation it offers;
+  an operation marked read-only must go through `connection_read` and any
+  other through `connection_act`, else a readable `connection.denied`.
+  Results over 16,000 characters are cut short.
+- `services::Connections` gains `operations(owner, handle)`, a default
+  method answering none, and the `Operation` type. Existing implementations
+  keep compiling. `connected(service)` gives the three tools to register.
+- The chat preset is version 5: it allows the three tools instead of
+  `app_read` and `app_act`, and its tools paragraph names them.
+
+No change to the event schema, the preset file format or the host API.
 
 ## 2026-11-16 — the model's window is hard
 

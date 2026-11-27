@@ -10,7 +10,7 @@
 //! | [`ArtifactStore`] | artifact create, update, read | 3 |
 //! | [`Egress`] | web search, URL reading | 4 |
 //! | [`MemoryStore`] | memory (spec pending) | after approval |
-//! | [`Connections`] | connected apps | later |
+//! | [`Connections`] | connected apps: `connections`, `connection_read`, `connection_act` | now |
 
 use harness_core::future::{ready, BoxFuture};
 use harness_core::*;
@@ -231,10 +231,29 @@ pub struct Connection {
     pub operations: Vec<String>,
 }
 
+/// One operation a connection offers, as the model is shown it.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Operation {
+    /// The name `call` takes.
+    pub name: String,
+    /// What it does, in the server's words.
+    pub description: String,
+    /// Its input, as a JSON schema.
+    pub input_schema: Value,
+    /// It only reads: offered through `connection_read`, which runs
+    /// without asking. Everything else goes through `connection_act`.
+    pub reads_only: bool,
+}
+
 /// Connected apps.
 pub trait Connections: Send + Sync {
     /// The connections an owner may use.
     fn list(&self, owner: &AppId) -> BoxFuture<'_, Vec<Connection>>;
+    /// The operations of one of an owner's connections. None by default:
+    /// an implementation that knows them says so here.
+    fn operations(&self, _owner: &AppId, _handle: &str) -> BoxFuture<'_, Vec<Operation>> {
+        ready(Vec::new())
+    }
     /// Run an operation through a connection.
     fn call(
         &self,

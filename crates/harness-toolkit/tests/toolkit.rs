@@ -257,3 +257,113 @@ fn service_fakes_keep_owners_apart() {
     assert!(poll(conns.call(&chat, "cal", "delete", Value::Null)).is_err());
     assert!(poll(conns.list(&AppId::from("docs"))).is_empty());
 }
+
+/// Connections whose operations say which ones only read.
+struct Described(FakeConnections);
+
+impl Connections for Described {
+    fn list(&self, owner: &AppId) -> BoxFuture<'_, Vec<Connection>> {
+        self.0.list(owner)
+    }
+
+    fn operations(&self, _owner: &AppId, _handle: &str) -> BoxFuture<'_, Vec<Operation>> {
+        let op = |name: &str, reads_only| Operation {
+            name: name.into(),
+            description: format!("{name} events"),
+            input_schema: Value::object([("type", Value::from("object"))]),
+            reads_only,
+        };
+        harness_core::future::ready(vec![op("list", true), op("create", false)])
+    }
+
+    fn call(
+        &self,
+        owner: &AppId,
+        handle: &str,
+        operation: &str,
+        input: Value,
+    ) -> BoxFuture<'_, Result<Value, ServiceError>> {
+        self.0.call(owner, handle, operation, input)
+    }
+}
+
+fn described() -> Arc<dyn Connections> {
+    let mut conns = FakeConnections::default();
+    conns.by_owner.insert(
+        AppId::from("chat"),
+        vec![Connection {
+            handle: "cal".into(),
+            label: "Calendar".into(),
+            operations: vec!["list".into(), "create".into()],
+        }],
+    );
+    Arc::new(Described(conns))
+}
+
+fn by_name(tools: &[Arc<dyn Tool>], name: &str) -> Arc<dyn Tool> {
+    tools
+        .iter()
+        .find(|t| t.spec().name == name)
+        .cloned()
+        .unwrap()
+}
+
+fn done(out: ToolOutput) -> harness_tools::ToolDone {
+    match out {
+        ToolOutput::Done(d) => d,
+        _ => panic!("expected a result"),
+    }
+}
+
+#[test]
+fn connected_tools_carry_the_effects_policy_reads() {
+    let tools = connected(described());
+    let effects = |n: &str| by_name(&tools, n).spec().effects;
+    assert_eq!(effects("connections"), vec![Effect::ReadsPrivateData]);
+    assert!(!effects("connection_read").contains(&Effect::ActsOutward));
+    assert!(effects("connection_read").contains(&Effect::IngestsUntrustedContent));
+    assert!(effects("connection_act").contains(&Effect::ActsOutward));
+}
+
+#[test]
+fn connections_lists_operations_with_their_marks() {
+    let tools = connected(described());
+    let out = done(poll(
+        by_name(&tools, "connections").call(&Value::Null, &cx("s1")),
+    ));
+    let text = format!("{out:?}");
+    assert!(text.contains("cal") && text.contains("Calendar"), "{text}");
+    assert!(text.contains("reads_only"), "{text}");
+}
+
+#[test]
+fn reads_and_acts_go_through_their_own_tool() {
+    let tools = connected(described());
+    let read = by_name(&tools, "connection_read");
+    let act = by_name(&tools, "connection_act");
+    let input = |op: &str| {
+        Value::object([
+            ("connection", Value::from("cal")),
+            ("operation", Value::from(op)),
+            ("input", Value::object([("day", Value::from("today"))])),
+        ])
+    };
+    let ok = |d: &harness_tools::ToolDone| format!("{d:?}").contains("Ok");
+    assert!(ok(&done(poll(read.call(&input("list"), &cx("s1"))))));
+    assert!(ok(&done(poll(act.call(&input("create"), &cx("s1"))))));
+    for (tool, op) in [(&read, "create"), (&act, "list"), (&read, "delete")] {
+        let d = done(poll(tool.call(&input(op), &cx("s1"))));
+        assert!(
+            format!("{d:?}").contains("connection.denied"),
+            "{op}: {d:?}"
+        );
+    }
+    let unknown = Value::object([
+        ("connection", Value::from("mail")),
+        ("operation", Value::from("list")),
+    ]);
+    let d = done(poll(read.call(&unknown, &cx("s1"))));
+    assert!(format!("{d:?}").contains("connection.denied"));
+    let d = done(poll(read.call(&Value::Null, &cx("s1"))));
+    assert!(format!("{d:?}").contains("tool.input"));
+}
