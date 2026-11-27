@@ -4,6 +4,16 @@ Newest first. Every deviation from the Milestone 0 brief is stated here.
 Entries for the Milestone 0 crates (step 0 through harness-host) are in
 `status-milestone-0.md`.
 
+## 2026-11-27 — Chat offers connected apps
+
+The chat preset (version 4) allows two more engine tools, `app_read` and
+`app_act`, through which the engine offers the person's connected apps:
+`app_read` for calls that only read, `app_act` for calls that change
+something, so an approval can be asked for those alone. The harness ships
+neither tool; a host that registers no tool by those names offers nothing
+new, and the tools paragraph of the prompt names them. No change to the
+event schema, the preset file format or the host API.
+
 ## 2026-11-16 — the model's window is hard
 
 Closes the two limits listed in the entry below. Compaction logic only: no
