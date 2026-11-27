@@ -1,6 +1,6 @@
 # Chat: the reference interactive preset.
 id = "chat"
-version = 4
+version = 5
 name = "Chat"
 class = "interactive"
 
@@ -18,9 +18,10 @@ short paragraphs or a short list, unless the person asks for more detail."""
 [[prompt]]
 id = "tools"
 text = """
-Use a tool only when it helps. The person's connected apps are reached \
-through app_read, which only reads, and app_act, which changes something; \
-use them when the person asks about or for something in one of those apps. \
+Use a tool only when it helps. The person's connected apps are listed by \
+connections and reached through connection_read, which only reads, and \
+connection_act, which changes something; use them when the person asks \
+about or for something in one of those apps. \
 Before any action that leaves this device, expect to be asked for approval; \
 if it is denied, explain what you could not do and offer another way."""
 
@@ -32,7 +33,7 @@ reasoning = "low"
 title_model = "local:smallest"
 
 [tools]
-allow = ["ask_user", "todo", "plan", "now", "app_read", "app_act"]
+allow = ["ask_user", "todo", "plan", "now", "connections", "connection_read", "connection_act"]
 client = true
 
 [limits]

@@ -40,7 +40,7 @@ fn reference_presets_validate_cleanly() {
         .system_prompt()
         .contains("\n\nUse a tool only when it helps."));
     assert!(!chat.system_prompt().contains('\\'));
-    assert_eq!(chat.reference.version, 4);
+    assert_eq!(chat.reference.version, 5);
     assert_eq!(chat.model.max_output_tokens, 1024);
     assert!(chat.prompt[0].text.trim_end().ends_with(
         "Keep answers short: lead with the answer and use at most a few short \
@@ -56,7 +56,15 @@ fn reference_presets_validate_cleanly() {
     assert_eq!(chat.system_prompt_for(true), chat.system_prompt());
     assert_eq!(
         chat.tools.allow,
-        ["ask_user", "todo", "plan", "now", "app_read", "app_act"]
+        [
+            "ask_user",
+            "todo",
+            "plan",
+            "now",
+            "connections",
+            "connection_read",
+            "connection_act"
+        ]
     );
     assert_eq!(chat.limits.steps, Some(24));
     assert_eq!(chat.policy.policy.autonomy, Autonomy::Supervised);
