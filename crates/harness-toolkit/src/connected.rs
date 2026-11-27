@@ -70,6 +70,10 @@ impl Tool for ListConnections {
         spec
     }
 
+    fn offered(&self, app: &AppId) -> bool {
+        self.service.offered(app)
+    }
+
     fn call<'a>(&'a self, _input: &'a Value, cx: &'a ToolCtx) -> BoxFuture<'a, ToolOutput> {
         Box::pin(async move {
             let mut out = Vec::new();
@@ -169,6 +173,10 @@ impl Tool for CallConnection {
             spec.effects.push(Effect::ActsOutward);
         }
         spec
+    }
+
+    fn offered(&self, app: &AppId) -> bool {
+        self.service.offered(app)
     }
 
     fn call<'a>(&'a self, input: &'a Value, cx: &'a ToolCtx) -> BoxFuture<'a, ToolOutput> {

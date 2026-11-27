@@ -52,4 +52,11 @@ pub trait Tool: Send + Sync {
 
     /// Run the tool. Failures are results, never panics.
     fn call<'a>(&'a self, input: &'a Value, cx: &'a ToolCtx) -> BoxFuture<'a, ToolOutput>;
+
+    /// Whether a new session of `app` is offered this tool at all. A tool
+    /// with nothing to work on for that app (no connected apps, say) says
+    /// no, so the model is not handed a tool it cannot use. Yes by default.
+    fn offered(&self, _app: &AppId) -> bool {
+        true
+    }
 }

@@ -249,6 +249,13 @@ pub struct Operation {
 pub trait Connections: Send + Sync {
     /// The connections an owner may use.
     fn list(&self, owner: &AppId) -> BoxFuture<'_, Vec<Connection>>;
+    /// Whether the connection tools are worth offering a new session of
+    /// `owner`: false when it has nothing connected, so a small model is
+    /// not handed tools it cannot use. Answered from what the service
+    /// already holds, without waiting. Yes by default.
+    fn offered(&self, _owner: &AppId) -> bool {
+        true
+    }
     /// The operations of one of an owner's connections. None by default:
     /// an implementation that knows them says so here.
     fn operations(&self, _owner: &AppId, _handle: &str) -> BoxFuture<'_, Vec<Operation>> {

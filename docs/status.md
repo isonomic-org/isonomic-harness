@@ -4,6 +4,19 @@ Newest first. Every deviation from the Milestone 0 brief is stated here.
 Entries for the Milestone 0 crates (step 0 through harness-host) are in
 `status-milestone-0.md`.
 
+## 2026-11-27 — Tools offered only where they can work
+
+A tool can now decline a new session with `Tool::offered(app)`, true by
+default; the host leaves a declined tool out of that session's registry
+and out of the specs the model sees. The connection tools forward to a new
+`Connections::offered(owner)`, also true by default, so an engine whose
+owner has nothing connected no longer hands the model `connections`,
+`connection_read` and `connection_act`. That also drops the preset's tools
+prompt for such a session. Found on the Mac: with the three tools offered
+and nothing connected, a 2B local model answered "plan one day in Lisbon"
+by saying it had no travel planner connected. A session keeps the tools it
+started with; one started after a connection is added gets them.
+
 ## 2026-11-27 — Connected-app tools in the toolkit
 
 Replaces the entry of the same day that had the chat preset allow
