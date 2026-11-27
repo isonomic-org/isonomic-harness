@@ -276,6 +276,10 @@ impl Connections for Described {
         harness_core::future::ready(vec![op("list", true), op("create", false)])
     }
 
+    fn offered(&self, owner: &AppId) -> bool {
+        self.0.by_owner.get(owner).is_some_and(|c| !c.is_empty())
+    }
+
     fn call(
         &self,
         owner: &AppId,
@@ -366,4 +370,15 @@ fn reads_and_acts_go_through_their_own_tool() {
     assert!(format!("{d:?}").contains("connection.denied"));
     let d = done(poll(read.call(&Value::Null, &cx("s1"))));
     assert!(format!("{d:?}").contains("tool.input"));
+}
+
+#[test]
+fn connected_tools_are_offered_only_to_an_app_with_connections() {
+    let tools = connected(described());
+    let owner = cx("s1").app;
+    let stranger = AppId::from("com.isonomic.other");
+    for t in &tools {
+        assert!(t.offered(&owner), "{}", t.spec().name);
+        assert!(!t.offered(&stranger), "{}", t.spec().name);
+    }
 }

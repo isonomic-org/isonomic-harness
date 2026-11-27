@@ -474,10 +474,10 @@ impl Inner {
     }
 
     /// The tools a preset offers in a session, and the registry behind them.
-    pub(crate) fn registry_for(&self, preset: &harness_preset::Preset) -> Registry {
+    pub(crate) fn registry_for(&self, preset: &harness_preset::Preset, app: &AppId) -> Registry {
         let mut r = Registry::new();
         for t in &self.cfg.tools {
-            if preset.tools.allow.contains(&t.spec().name) {
+            if preset.tools.allow.contains(&t.spec().name) && t.offered(app) {
                 r.add_engine(t.clone());
             }
         }

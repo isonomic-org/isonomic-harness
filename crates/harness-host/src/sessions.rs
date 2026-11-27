@@ -73,7 +73,7 @@ impl Inner {
         preset: &Preset,
     ) -> Arc<Slot> {
         let now = self.now();
-        let mut registry = self.registry_for(preset);
+        let mut registry = self.registry_for(preset, &meta.app);
         registry.retain_named(&preset.tools.allow);
         Arc::new(Slot {
             id: meta.id.clone(),
@@ -113,10 +113,11 @@ impl Inner {
     pub(crate) fn loop_config(
         &self,
         preset: &Preset,
+        app: &AppId,
         profile: Option<Profile>,
         limits: Option<harness_policy::Limits>,
     ) -> harness_loop::Config {
-        let specs = self.registry_for(preset).specs();
+        let specs = self.registry_for(preset, app).specs();
         let mut cfg = harness_loop::Config::new(preset.clone(), profile, specs);
         if let Some(l) = limits {
             cfg.limits = cfg.limits.tighten(&l);
@@ -156,8 +157,10 @@ impl Inner {
                     .or_else(|| self.preset(&meta.app, &PresetId::from("chat"), None));
                 let preset = stored.and_then(|p| p.preset).ok_or(HostError::NotFound)?;
                 let model = harness_loop::picked_model(model.as_deref());
-                let cfg =
-                    self.model_config(self.loop_config(&preset, profile, None), model.as_deref());
+                let cfg = self.model_config(
+                    self.loop_config(&preset, &meta.app, profile, None),
+                    model.as_deref(),
+                );
                 // The log is the source for the model; a registry row that
                 // disagrees (written before the field, or edited) follows it.
                 let meta = if meta.model == model {
@@ -277,7 +280,7 @@ impl Host {
                 model,
             };
             let cfg = me.model_config(
-                me.loop_config(&p, start.profile.clone(), opts.limits),
+                me.loop_config(&p, &start.app, start.profile.clone(), opts.limits),
                 start.model.as_deref(),
             );
             let model = start.model.clone();
