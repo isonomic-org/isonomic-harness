@@ -14,6 +14,7 @@
 //! Tools never panic: bad input is a readable error result.
 
 mod connected;
+pub mod files;
 pub mod grants;
 mod now;
 pub mod services;

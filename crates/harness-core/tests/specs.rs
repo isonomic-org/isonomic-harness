@@ -6,13 +6,15 @@
 //! -p harness-core --test specs` rewrites it.
 
 use harness_core::display::DISPLAY_SPECS;
+use harness_core::kits::FILES_SPECS;
 use harness_core::ToolSpec;
 
 const PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/snapshots/specs.json");
 
 #[test]
 fn every_spec_matches_its_snapshot() {
-    let specs: Vec<ToolSpec> = DISPLAY_SPECS.iter().map(|d| d.tool_spec()).collect();
+    let mut specs: Vec<ToolSpec> = DISPLAY_SPECS.iter().map(|d| d.tool_spec()).collect();
+    specs.extend(FILES_SPECS.iter().map(|k| k.tool_spec()));
     let mut now = serde_json::to_string_pretty(&specs).unwrap();
     now.push('\n');
     if std::env::var_os("UPDATE_SNAPSHOTS").is_some() {

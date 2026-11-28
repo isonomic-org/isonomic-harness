@@ -71,6 +71,24 @@
       "fnv1a64": "df453f512bc6e9cc",
       "name": "kits-offer",
       "sessions": 8
+    },
+    {
+      "bytes": 16686,
+      "committed": true,
+      "events": 51,
+      "file": "kits-files-read.jsonl",
+      "fnv1a64": "5312a3eb4030cfb5",
+      "name": "kits-files-read",
+      "sessions": 1
+    },
+    {
+      "bytes": 22665,
+      "committed": true,
+      "events": 73,
+      "file": "kits-files-write.jsonl",
+      "fnv1a64": "99bce5dac8c768bc",
+      "name": "kits-files-write",
+      "sessions": 1
     }
   ],
   "format": "isonomic.session-log",

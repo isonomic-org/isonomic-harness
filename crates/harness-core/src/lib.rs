@@ -21,6 +21,7 @@ pub mod event;
 pub mod future;
 pub mod ids;
 mod kinds;
+pub mod kits;
 pub mod live;
 mod memory;
 pub mod offer;

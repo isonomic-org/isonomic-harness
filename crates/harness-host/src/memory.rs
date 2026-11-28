@@ -308,6 +308,15 @@ impl MemoryHost {
 
     /// A host with a configuration.
     pub fn with(cfg: HostConfig) -> Self {
+        Self::with_files(cfg, None)
+    }
+
+    /// A host with a configuration and, when given, the files kit over a
+    /// memory store.
+    pub fn with_files(
+        cfg: HostConfig,
+        files: Option<Arc<harness_toolkit::files::MemoryFs>>,
+    ) -> Self {
         let clock = Arc::new(ManualClock::new(1_794_646_800_000));
         let spawner = Arc::new(MemorySpawner::new(clock.clone()));
         let store = Arc::new(MemoryStore::new());
@@ -327,6 +336,7 @@ impl MemoryHost {
             executor: Arc::new(InProcessExecutor::new(spawner.clone())),
             locale: Arc::new(FixedLocale),
             grants: Some(grants.clone()),
+            files: files.map(|f| f as Arc<dyn harness_toolkit::files::FileSystem>),
         };
         Self {
             host: Host::new(deps, cfg),
