@@ -58,3 +58,18 @@ gate; the identity specification (in house) for grant answers.
 6. **Fixture headers read revision 2.** Every event line of every existing
    fixture is unchanged; only the header line moves, as it did for display
    widgets.
+7. **Invariants are exhaustive loops, not property tests.** The inputs are
+   small closed sets (effects, flags, autonomy, grant answers, reversible,
+   confined), so the tests walk every combination instead of sampling, and
+   no property-testing dependency is added.
+8. **The grants contract lives in harness-toolkit** (`grants::contract`),
+   beside the trait, not in harness-testkit: harness-testkit depends on
+   harness-core alone, and the engine's implementation reaches the contract
+   through the same crate it implements.
+9. **No unknown-profile session in the kits-offer fixture.** The event
+   schema lists the known profiles, so a fixture line with another would
+   not validate. The offer table's test covers an unknown profile.
+10. **Remember records the act from the request's effects.** These are the
+    narrowed effects, which differ from the tool's own only for a confined
+    call. No confined backend exists yet; when Cells arrive, the remembered
+    act must be the one the grant check used.

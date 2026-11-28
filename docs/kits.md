@@ -43,8 +43,10 @@ tools that pass three filters:
 3. **Budget.** Core tools first, kit by kit in the preset's order, then the
    rest in the same order, up to the table's count.
 
-The context record lists the linked folders' names when a folder tool is
-offered.
+A kit tool named in a preset's `tools.allow` is not offered that way: it
+still has to pass the three filters. The context record lists the linked
+folders' names when a folder tool is offered, and the model's context text
+says "Linked folders: …", so the model need not spend a call to learn them.
 
 ## A call
 
@@ -65,15 +67,19 @@ offered.
    and `remember`: `once` for the three-flag rule, code, autonomy, an
    irreversible act or no access; otherwise the access's.
 6. At run the host checks the grants again. A grant revoked since the
-   verdict refuses the call (`grant.revoked`).
+   verdict refuses the call (`grant.revoked`). Only a denial refuses: a
+   grant switched to "ask first" after the verdict does not ask again,
+   because the verdict already allowed the call or the person answered it.
 
 ## Remembering
 
 `decide_approval` takes an optional `remember`. With a verified user-action
-token and an allow, the host holds it to the request's `remember` and calls
-`Grants::remember`: `session` covers the same effect and scope in that
+token and an allow, the host holds it to the request's `remember` and, once
+the loop has taken the decision, calls `Grants::remember`: `session` covers the same effect and scope in that
 session only (a fork has its own id), `always` issues a standing grant
-without "ask first", `once` changes nothing. Purge forgets the purged
+without "ask first", `once` changes nothing. A session approval answers a
+standing grant's "ask first" and never outlives it: once the grant is
+revoked, the approval allows nothing (part of the grants contract). Purge forgets the purged
 sessions' approvals.
 
 ## Tests

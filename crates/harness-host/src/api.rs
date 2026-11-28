@@ -143,11 +143,8 @@ impl Host {
             let remember = remember
                 .map(|r| r.at_most(&limit))
                 .filter(|r| verified && decision == Decision::Allow && r.rank() > 0);
-            if let Some(how) = &remember {
-                me.remember(&pending.session, &pending.owner, &pending.request, how);
-            }
             let d = ApprovalDecision {
-                remember,
+                remember: remember.clone(),
                 approval: id,
                 decision,
                 basis,
@@ -155,7 +152,14 @@ impl Host {
                 answer,
                 reason: None,
             };
-            me.apply(&slot, LoopInput::Decision(d)).await;
+            let outs = me.apply(&slot, LoopInput::Decision(d)).await;
+            // Remembered only once the loop took the decision.
+            let taken = !outs
+                .iter()
+                .any(|o| matches!(o, harness_loop::Output::Refused(_)));
+            if let (true, Some(how)) = (taken, &remember) {
+                me.remember(&pending.session, &pending.owner, &pending.request, how);
+            }
             Ok(())
         })
     }

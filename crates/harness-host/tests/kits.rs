@@ -10,7 +10,7 @@ use harness_core::future::BoxFuture;
 use harness_core::offer::KitMember;
 use harness_core::*;
 use harness_host::*;
-use harness_toolkit::Standing;
+use harness_toolkit::{Grants, Standing};
 use harness_tools::{Tool, ToolCtx, ToolDone, ToolOutput};
 use std::sync::Arc;
 
@@ -275,6 +275,59 @@ fn this_session_remembers_a_write_for_that_folder_and_session_only() {
     m.model.calls(&[("write_file", "{\"folder\":\"design\"}")]);
     m.block_on(m.host.send(&a, &s3, text("Write."))).unwrap();
     assert_eq!(requests(&m, &s3).len(), 1);
+}
+
+#[test]
+fn remember_without_a_verified_token_changes_nothing() {
+    let m = host();
+    let a = m.caller(&m.app_token("chat", AppKind::FirstParty));
+    let shell = m.caller(&m.shell_token());
+    grant(&m, Effect::ModifiesData, "design", true);
+    let s = create(&m, &a);
+    m.model.calls(&[("write_file", "{\"folder\":\"design\"}")]);
+    m.block_on(m.host.send(&a, &s, text("Write."))).unwrap();
+    let id = requests(&m, &s)[0].approval.clone();
+    let forged = UserActionToken("ua:forged".into());
+    for token in [None, Some(forged)] {
+        assert_eq!(
+            m.block_on(m.host.decide_approval(
+                &shell,
+                &s,
+                &id,
+                DecisionInput::Allow,
+                Some(Remember::Session),
+                token,
+            )),
+            Err(HostError::MissingUserAction)
+        );
+    }
+    let write = folder("design");
+    let held = m.grants.held(&AppId::from("chat"), &s);
+    assert_eq!(held.len(), 1, "the standing grant only");
+    assert_eq!(
+        m.grants
+            .check(&AppId::from("chat"), &s, &Effect::ModifiesData, &write),
+        harness_core::access::GrantAnswer::Ask
+    );
+}
+
+#[test]
+fn a_kit_tool_in_tools_allow_still_passes_the_offer_filters() {
+    // A kit tool named in the test preset's `tools.allow`.
+    let mut cfg = memory_config();
+    cfg.tools.retain(|t| t.spec().name != "todo");
+    cfg.tools.push(Arc::new(FolderTool {
+        name: "todo",
+        effect: Effect::ModifiesData,
+        core: true,
+        resolves: true,
+    }));
+    let m = MemoryHost::with(cfg);
+    let a = m.caller(&m.app_token("chat", AppKind::FirstParty));
+    let s = create(&m, &a);
+    let names = offered(&m, &a, &s);
+    assert!(names.contains(&"ask_user".to_string()));
+    assert!(!names.contains(&"todo".to_string()));
 }
 
 #[test]

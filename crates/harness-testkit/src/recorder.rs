@@ -171,6 +171,9 @@ impl Recorder {
         if let Some(place) = location {
             text.push_str(&format!(" Location: {place}."));
         }
+        if !folders.is_empty() {
+            text.push_str(&format!(" Linked folders: {}.", folders.join(", ")));
+        }
         cx.history_bytes += text.len() as u64;
         self.emit(
             cx,

@@ -33,7 +33,9 @@ pub trait Grants: Send + Sync {
 
     /// A person approved with "this session" or "always". The host calls it
     /// only after a decision that carried a verified user-action token.
-    /// `Once` changes nothing.
+    /// `Once` changes nothing. A session approval answers a standing grant's
+    /// "ask first"; it never outlives that grant, so revoking the grant
+    /// takes the approval's effect with it.
     fn remember(
         &self,
         app: &AppId,
@@ -107,8 +109,12 @@ impl Grants for MemoryGrants {
                 ask_first: g.ask_first,
             })
             .collect();
+        let standing = lock(&self.standing);
         for (s, a, effect, scope) in lock(&self.approvals).iter() {
-            if s == session && a == app {
+            let backed = standing
+                .iter()
+                .any(|g| &g.app == app && &g.effect == effect && covers(&g.scope, scope));
+            if s == session && a == app && backed {
                 out.push(HeldGrant {
                     effect: effect.clone(),
                     scope: scope.clone(),
@@ -126,18 +132,16 @@ impl Grants for MemoryGrants {
         effect: &Effect,
         scope: &Scope,
     ) -> GrantAnswer {
-        let approved = lock(&self.approvals)
-            .iter()
-            .any(|(s, a, e, sc)| s == session && a == app && e == effect && sc == scope);
-        if approved {
-            return GrantAnswer::Allow;
-        }
         let standing = lock(&self.standing);
         let matching: Vec<&Standing> = standing
             .iter()
             .filter(|g| &g.app == app && &g.effect == effect && covers(&g.scope, scope))
             .collect();
-        if matching.iter().any(|g| !g.ask_first) {
+        let approved = !matching.is_empty()
+            && lock(&self.approvals)
+                .iter()
+                .any(|(s, a, e, sc)| s == session && a == app && e == effect && sc == scope);
+        if approved || matching.iter().any(|g| !g.ask_first) {
             GrantAnswer::Allow
         } else if !matching.is_empty() {
             GrantAnswer::Ask
@@ -245,6 +249,14 @@ pub mod contract {
             GrantAnswer::Deny(_)
         ));
 
+        // A session approval with no standing grant behind it allows nothing.
+        g.remember(&app, &s1, &write, &notes, &Remember::Session);
+        assert!(matches!(
+            g.check(&app, &s1, &write, &notes),
+            GrantAnswer::Deny(_)
+        ));
+        assert_eq!(g.held(&app, &s1).len(), 3);
+
         // Purge takes the session's approvals with it.
         g.forget(std::slice::from_ref(&s1));
         assert_eq!(g.check(&app, &s1, &write, &design), GrantAnswer::Ask);
@@ -288,8 +300,43 @@ pub mod contract {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     #[test]
     fn the_fake_passes_the_contract() {
-        super::contract::run(super::MemoryGrants::new);
+        contract::run(MemoryGrants::new);
+    }
+
+    #[test]
+    fn revoking_a_grant_ends_the_session_approvals_on_it() {
+        let (app, s1) = (AppId::from("chat"), SessionId::from("s1"));
+        let design = Scope {
+            kind: ScopeKind::Folder,
+            id: "design".into(),
+            label: "design".into(),
+        };
+        let g = MemoryGrants::new(vec![Standing {
+            app: app.clone(),
+            effect: Effect::ModifiesData,
+            scope: design.clone(),
+            ask_first: true,
+        }]);
+        g.remember(
+            &app,
+            &s1,
+            &Effect::ModifiesData,
+            &design,
+            &Remember::Session,
+        );
+        assert_eq!(
+            g.check(&app, &s1, &Effect::ModifiesData, &design),
+            GrantAnswer::Allow
+        );
+        g.revoke(&app, &design);
+        assert!(matches!(
+            g.check(&app, &s1, &Effect::ModifiesData, &design),
+            GrantAnswer::Deny(_)
+        ));
+        assert!(g.held(&app, &s1).is_empty());
     }
 }

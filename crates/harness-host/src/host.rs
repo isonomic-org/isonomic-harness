@@ -498,7 +498,10 @@ impl Inner {
         let mut r = Registry::new();
         for t in &self.cfg.tools {
             let name = t.spec().name;
-            let named = preset.tools.allow.contains(&name) || kits.contains(&name);
+            // A kit tool comes in only through the offer filters, never by
+            // being named in `tools.allow`.
+            let allowed = t.kit().is_none() && preset.tools.allow.contains(&name);
+            let named = allowed || kits.contains(&name);
             if named && t.offered(app) {
                 r.add_engine(t.clone());
             }

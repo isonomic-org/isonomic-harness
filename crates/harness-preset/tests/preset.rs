@@ -280,3 +280,24 @@ fn display_tools_must_be_known_and_few() {
     let typo = errors("id = \"x\"\nversion = 1\n[display]\ntool = []\n");
     assert_eq!(typo.len(), 1, "{typo:?}");
 }
+
+#[test]
+fn kits_must_be_known() {
+    let unknown = errors("id = \"x\"\nversion = 1\n[kits]\nuse = [\"files\", \"teleport\"]\n");
+    assert_eq!(
+        unknown,
+        [(
+            "kits.use[1]".to_owned(),
+            "\"teleport\" is not a tool kit".to_owned()
+        )]
+    );
+    let twice = parse("id = \"x\"\nversion = 1\n[kits]\nuse = [\"files\", \"web\", \"files\"]\n");
+    let warned: Vec<&str> = twice
+        .diagnostics
+        .iter()
+        .filter(|d| d.path.starts_with("kits"))
+        .map(|d| d.path.as_str())
+        .collect();
+    assert_eq!(warned, ["kits.use[2]"], "a duplicate warns");
+    assert_eq!(twice.preset.unwrap().kits, ["files", "web"]);
+}

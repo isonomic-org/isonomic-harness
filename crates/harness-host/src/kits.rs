@@ -127,7 +127,10 @@ impl Inner {
                 }
                 Some(Ok(access)) => {
                     let grant = me.check(&s, &spec, &access.scope);
-                    lock(&s.scopes).insert(call.call.clone(), access.scope.clone());
+                    // A denied call never runs, so its scope is not kept.
+                    if !matches!(grant, GrantAnswer::Deny(_)) {
+                        lock(&s.scopes).insert(call.call.clone(), access.scope.clone());
+                    }
                     Ok((access, grant))
                 }
             };
@@ -142,7 +145,9 @@ impl Inner {
     }
 
     /// The check again, as the call runs: a grant revoked since the verdict
-    /// refuses it.
+    /// refuses it. Only a denial refuses: a grant switched to "ask first"
+    /// after the verdict does not ask again, because the verdict already
+    /// allowed the call or the person already answered it.
     pub(crate) fn recheck(&self, slot: &Slot, call: &CallId, spec: &ToolSpec) -> Option<ToolDone> {
         spec.scope.as_ref()?;
         let Some(scope) = lock(&slot.scopes).remove(call) else {
