@@ -43,7 +43,7 @@ fn every_grant() -> Vec<HeldGrant> {
 }
 
 /// The cases, in session order: profile, model, grants.
-pub fn cases() -> Vec<(Option<Profile>, &'static str, Vec<HeldGrant>)> {
+fn cases() -> Vec<(Option<Profile>, &'static str, Vec<HeldGrant>)> {
     vec![
         (Some(Profile::Standard), "local:small", Vec::new()),
         (
@@ -61,7 +61,7 @@ pub fn cases() -> Vec<(Option<Profile>, &'static str, Vec<HeldGrant>)> {
 }
 
 /// What the table and the grants admit, as specs in admission order.
-pub fn admitted(profile: Option<&Profile>, model: &str, grants: &[HeldGrant]) -> Vec<ToolSpec> {
+fn admitted(profile: Option<&Profile>, model: &str, grants: &[HeldGrant]) -> Vec<ToolSpec> {
     let fakes = kit_fakes();
     let candidates: Vec<KitCandidate<'_>> = fakes
         .iter()

@@ -19,7 +19,7 @@ mod autonomous_run;
 mod chat_basic;
 mod client_gone;
 mod display;
-pub mod kits_offer;
+mod kits_offer;
 mod long_thread;
 mod tool_heavy;
 

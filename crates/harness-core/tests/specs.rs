@@ -19,5 +19,8 @@ fn every_spec_matches_its_snapshot() {
         std::fs::write(PATH, &now).unwrap();
     }
     let saved = std::fs::read_to_string(PATH).unwrap_or_default();
-    assert!(saved == now, "specs changed: rerun with UPDATE_SNAPSHOTS=1 and review the diff");
+    assert!(
+        saved == now,
+        "specs changed: rerun with UPDATE_SNAPSHOTS=1 and review the diff"
+    );
 }
