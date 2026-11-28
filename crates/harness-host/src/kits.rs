@@ -8,9 +8,9 @@
 
 use crate::exec::{lock, CatchUnwind};
 use crate::host::{Inner, Slot};
-use harness_core::*;
 use harness_core::access::{grant_effect, GrantAnswer, Scope};
 use harness_core::offer::{admit, offer, KitCandidate};
+use harness_core::*;
 use harness_loop::Input as LoopInput;
 use harness_tools::{Handler, ToolCtx, ToolDone, ToolOutput};
 use std::sync::Arc;
@@ -59,7 +59,12 @@ impl Inner {
                 core: k.core,
             })
             .collect();
-        admit(&preset.kits, &candidates, &grants.held(app, session), budget)
+        admit(
+            &preset.kits,
+            &candidates,
+            &grants.held(app, session),
+            budget,
+        )
     }
 
     /// The result cap for a session offering `tools`: the capability
@@ -85,12 +90,21 @@ impl Inner {
     /// Resolve a kit call: the tool's access, then the grant check, back to
     /// the loop. A failure is the call's result.
     pub(crate) fn resolve_call(self: &Arc<Self>, slot: &Arc<Slot>, call: ToolCall, spec: ToolSpec) {
-        let tool = match lock(&slot.registry).get(&spec.name).map(|e| e.handler.clone()) {
+        let tool = match lock(&slot.registry)
+            .get(&spec.name)
+            .map(|e| e.handler.clone())
+        {
             Some(Handler::Engine(t)) => t,
             _ => {
                 let msg = format!("{} cannot run here.", spec.name);
                 let result = Err(ToolDone::error("kit.unavailable", &msg));
-                self.feed(slot, LoopInput::Resolved { call: call.call, result });
+                self.feed(
+                    slot,
+                    LoopInput::Resolved {
+                        call: call.call,
+                        result,
+                    },
+                );
                 return;
             }
         };
@@ -155,7 +169,13 @@ impl Inner {
 
     /// A person allowed `request` for longer than once, with a verified
     /// token: the grants remember it for its effect and scope.
-    pub(crate) fn remember(&self, session: &SessionId, owner: &AppId, request: &ApprovalRequest, how: &Remember) {
+    pub(crate) fn remember(
+        &self,
+        session: &SessionId,
+        owner: &AppId,
+        request: &ApprovalRequest,
+        how: &Remember,
+    ) {
         let (Some(g), Some(scope)) = (&self.deps.grants, &request.scope) else {
             return;
         };

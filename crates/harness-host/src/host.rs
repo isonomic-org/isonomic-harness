@@ -428,7 +428,13 @@ impl Inner {
                 };
                 if let Some(done) = self.recheck(slot, &call.call, &spec) {
                     let output = crate::kits::refused(done);
-                    self.feed(slot, LoopInput::Tool { call: call.call, output });
+                    self.feed(
+                        slot,
+                        LoopInput::Tool {
+                            call: call.call,
+                            output,
+                        },
+                    );
                     return;
                 }
                 let ctx = self.tool_ctx(slot, &call);

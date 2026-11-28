@@ -93,20 +93,28 @@ fn two_sessions_with_the_same_approval_id_stay_apart() {
 
     // Deciding A's leaves B's pending.
     m.model.text("Posted.");
-    m.block_on(
-        m.host
-            .decide_approval(&shell, &sa, &id, DecisionInput::Deny, None, Some(for_a.clone())),
-    )
+    m.block_on(m.host.decide_approval(
+        &shell,
+        &sa,
+        &id,
+        DecisionInput::Deny,
+        None,
+        Some(for_a.clone()),
+    ))
     .unwrap();
     assert_eq!((decisions(&m, &sa), decisions(&m, &sb)), (1, 0));
     let left = m.block_on(m.host.list_approvals(&shell)).unwrap();
     assert_eq!(left.len(), 1);
     assert_eq!(left[0].session, sb);
     assert_eq!(
-        m.block_on(
-            m.host
-                .decide_approval(&shell, &sa, &id, DecisionInput::Allow, None, Some(for_a))
-        ),
+        m.block_on(m.host.decide_approval(
+            &shell,
+            &sa,
+            &id,
+            DecisionInput::Allow,
+            None,
+            Some(for_a)
+        )),
         Err(HostError::AlreadyDecided)
     );
     // A's decided approval says nothing to B.

@@ -28,8 +28,8 @@ pub use output::{limit_output, QuestionSpec, ToolDone, ToolOutput};
 pub use registry::{Entry, Handler, Registry, RegistryError};
 
 use harness_core::access::Access;
-use harness_core::offer::KitMember;
 use harness_core::future::BoxFuture;
+use harness_core::offer::KitMember;
 use harness_core::*;
 
 /// What an engine tool knows about the call it serves.
