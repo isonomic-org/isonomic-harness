@@ -1,0 +1,285 @@
+[
+  {
+    "name": "show_table",
+    "description": "Show a table of rows and columns the person can sort. Use for comparisons of 3 or more items.",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "columns": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "numeric": {
+                "type": "boolean"
+              },
+              "title": {
+                "maxLength": 40,
+                "minLength": 1,
+                "type": "string"
+              },
+              "total": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "title"
+            ],
+            "type": "object"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "type": "array"
+        },
+        "fallback_text": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "rows": {
+          "items": {
+            "items": {
+              "maxLength": 120,
+              "type": "string"
+            },
+            "maxItems": 8,
+            "minItems": 1,
+            "type": "array"
+          },
+          "maxItems": 50,
+          "minItems": 1,
+          "type": "array"
+        },
+        "sort": {
+          "additionalProperties": false,
+          "properties": {
+            "ascending": {
+              "type": "boolean"
+            },
+            "column": {
+              "maximum": 7,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "column"
+          ],
+          "type": "object"
+        },
+        "title": {
+          "maxLength": 80,
+          "type": "string"
+        }
+      },
+      "required": [
+        "columns",
+        "rows",
+        "fallback_text"
+      ],
+      "type": "object"
+    },
+    "kind": "display",
+    "concurrency": "parallel"
+  },
+  {
+    "name": "show_steps",
+    "description": "Show a short list of steps and where each one stands. Use for plans, procedures and progress.",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "fallback_text": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "steps": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "detail": {
+                "maxLength": 120,
+                "type": "string"
+              },
+              "state": {
+                "enum": [
+                  "done",
+                  "current",
+                  "pending",
+                  "failed"
+                ],
+                "type": "string"
+              },
+              "substeps": {
+                "items": {
+                  "maxLength": 80,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "maxItems": 6,
+                "type": "array"
+              },
+              "title": {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "title"
+            ],
+            "type": "object"
+          },
+          "maxItems": 12,
+          "minItems": 1,
+          "type": "array"
+        },
+        "title": {
+          "maxLength": 80,
+          "type": "string"
+        }
+      },
+      "required": [
+        "steps",
+        "fallback_text"
+      ],
+      "type": "object"
+    },
+    "kind": "display",
+    "concurrency": "parallel"
+  },
+  {
+    "name": "show_metrics",
+    "description": "Show 1 to 6 headline figures side by side, each with an optional change. Use for summaries of numbers.",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "fallback_text": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "metrics": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "change_percent": {
+                "maximum": 10000,
+                "minimum": -10000,
+                "type": "number"
+              },
+              "hint": {
+                "maxLength": 80,
+                "type": "string"
+              },
+              "label": {
+                "maxLength": 40,
+                "minLength": 1,
+                "type": "string"
+              },
+              "lower_is_better": {
+                "type": "boolean"
+              },
+              "trend": {
+                "items": {
+                  "type": "number"
+                },
+                "maxItems": 24,
+                "minItems": 2,
+                "type": "array"
+              },
+              "value": {
+                "maxLength": 24,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "label",
+              "value"
+            ],
+            "type": "object"
+          },
+          "maxItems": 6,
+          "minItems": 1,
+          "type": "array"
+        },
+        "title": {
+          "maxLength": 80,
+          "type": "string"
+        }
+      },
+      "required": [
+        "metrics",
+        "fallback_text"
+      ],
+      "type": "object"
+    },
+    "kind": "display",
+    "concurrency": "parallel"
+  },
+  {
+    "name": "show_chart",
+    "description": "Show one series of labelled values as a bar, line or area chart. Use when the shape of the numbers matters.",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "fallback_text": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "bar",
+            "line",
+            "area"
+          ],
+          "type": "string"
+        },
+        "points": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "label": {
+                "maxLength": 24,
+                "minLength": 1,
+                "type": "string"
+              },
+              "value": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "label",
+              "value"
+            ],
+            "type": "object"
+          },
+          "maxItems": 60,
+          "minItems": 2,
+          "type": "array"
+        },
+        "series": {
+          "maxLength": 40,
+          "type": "string"
+        },
+        "title": {
+          "maxLength": 80,
+          "type": "string"
+        },
+        "unit": {
+          "maxLength": 12,
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "points",
+        "fallback_text"
+      ],
+      "type": "object"
+    },
+    "kind": "display",
+    "concurrency": "parallel"
+  }
+]
