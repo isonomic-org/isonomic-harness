@@ -44,6 +44,9 @@ pub struct Deps {
     /// Grants, for the tool kits (`docs/kits.md`); `None` offers no kit
     /// tool.
     pub grants: Option<Arc<dyn harness_toolkit::Grants>>,
+    /// The person's linked folders, for the files kit; `None` registers no
+    /// files tool.
+    pub files: Option<Arc<dyn harness_toolkit::files::FileSystem>>,
 }
 
 /// Host settings.
@@ -120,7 +123,11 @@ pub struct Host(pub(crate) Arc<Inner>);
 impl Host {
     /// Build the host over the engine's traits, with the built-in presets,
     /// and start the watchdog.
-    pub fn new(deps: Deps, cfg: HostConfig) -> Self {
+    pub fn new(deps: Deps, mut cfg: HostConfig) -> Self {
+        if let Some(fs) = &deps.files {
+            cfg.tools
+                .extend(harness_toolkit::files::files_kit(fs.clone()));
+        }
         let mut presets = BTreeMap::new();
         for (text, parsed) in harness_preset::builtins() {
             if let Some(p) = parsed.preset.clone() {
