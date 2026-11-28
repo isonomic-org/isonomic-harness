@@ -281,5 +281,206 @@
     },
     "kind": "display",
     "concurrency": "parallel"
+  },
+  {
+    "name": "list_dir",
+    "description": "List a folder: one line per entry with its size and date. An empty path lists the linked folders.",
+    "input_schema": {
+      "properties": {
+        "after": {
+          "description": "Continue after this name, from the last listing",
+          "type": "string"
+        },
+        "path": {
+          "description": "A folder, like Design/icons; empty for the linked folders",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "type": "object"
+    },
+    "kind": "engine",
+    "effects": [
+      "reads_private_data"
+    ],
+    "concurrency": "parallel",
+    "scope": "folder"
+  },
+  {
+    "name": "read_file",
+    "description": "Read a text file, as much as fits. The header says which lines are shown and where to go on.",
+    "input_schema": {
+      "properties": {
+        "from_line": {
+          "description": "First line to show, from 1",
+          "type": "integer"
+        },
+        "lines": {
+          "description": "How many lines to show at most",
+          "type": "integer"
+        },
+        "path": {
+          "description": "A linked folder's name, then the path inside it, like Design/notes.md",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "type": "object"
+    },
+    "kind": "engine",
+    "effects": [
+      "reads_private_data",
+      "ingests_untrusted_content"
+    ],
+    "concurrency": "parallel",
+    "scope": "folder"
+  },
+  {
+    "name": "search_files",
+    "description": "Find files by name, or lines that contain some plain text, under a folder.",
+    "input_schema": {
+      "properties": {
+        "in": {
+          "description": "names or text; names when left out",
+          "type": "string"
+        },
+        "path": {
+          "description": "The folder to search, like Design",
+          "type": "string"
+        },
+        "query": {
+          "description": "The name or the text to find",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "query"
+      ],
+      "type": "object"
+    },
+    "kind": "engine",
+    "effects": [
+      "reads_private_data",
+      "ingests_untrusted_content"
+    ],
+    "concurrency": "parallel",
+    "scope": "folder"
+  },
+  {
+    "name": "write_file",
+    "description": "Create or replace a text file with the whole text, or add text to its end.",
+    "input_schema": {
+      "properties": {
+        "append": {
+          "description": "Add to the end instead of replacing",
+          "type": "boolean"
+        },
+        "path": {
+          "description": "A linked folder's name, then the path inside it, like Design/notes.md",
+          "type": "string"
+        },
+        "text": {
+          "description": "The whole new text, or the text to add",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "text"
+      ],
+      "type": "object"
+    },
+    "kind": "engine",
+    "effects": [
+      "modifies_data"
+    ],
+    "concurrency": "serial",
+    "scope": "folder"
+  },
+  {
+    "name": "edit_file",
+    "description": "Replace one place in a text file. find must match exactly one place; give more lines if it matches more.",
+    "input_schema": {
+      "properties": {
+        "find": {
+          "description": "The text to find, copied from the file",
+          "type": "string"
+        },
+        "path": {
+          "description": "A linked folder's name, then the path inside it, like Design/notes.md",
+          "type": "string"
+        },
+        "replace": {
+          "description": "What to put in its place",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "find",
+        "replace"
+      ],
+      "type": "object"
+    },
+    "kind": "engine",
+    "effects": [
+      "modifies_data"
+    ],
+    "concurrency": "serial",
+    "scope": "folder"
+  },
+  {
+    "name": "move_path",
+    "description": "Move or rename a file or folder inside one linked folder. Never replaces what is there.",
+    "input_schema": {
+      "properties": {
+        "from": {
+          "description": "What to move, like Design/old.md",
+          "type": "string"
+        },
+        "to": {
+          "description": "Where it goes, like Design/new.md",
+          "type": "string"
+        }
+      },
+      "required": [
+        "from",
+        "to"
+      ],
+      "type": "object"
+    },
+    "kind": "engine",
+    "effects": [
+      "modifies_data"
+    ],
+    "concurrency": "serial",
+    "scope": "folder"
+  },
+  {
+    "name": "trash_path",
+    "description": "Move a file or folder to the Trash, where the person can get it back.",
+    "input_schema": {
+      "properties": {
+        "path": {
+          "description": "A linked folder's name, then the path inside it, like Design/notes.md",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "type": "object"
+    },
+    "kind": "engine",
+    "effects": [
+      "modifies_data"
+    ],
+    "concurrency": "serial",
+    "scope": "folder"
   }
 ]

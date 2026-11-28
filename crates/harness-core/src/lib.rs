@@ -20,6 +20,7 @@ pub mod error;
 pub mod event;
 pub mod future;
 pub mod ids;
+pub mod kits;
 mod kinds;
 pub mod live;
 mod memory;
