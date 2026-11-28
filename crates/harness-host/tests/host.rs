@@ -185,7 +185,7 @@ fn approvals_need_a_user_action_and_the_right_decider() {
     assert_eq!(
         m.block_on(
             m.host
-                .decide_approval(&a, &s, &id, DecisionInput::Allow, None)
+                .decide_approval(&a, &s, &id, DecisionInput::Allow, None, None)
         ),
         Err(HostError::MissingUserAction)
     );
@@ -193,7 +193,7 @@ fn approvals_need_a_user_action_and_the_right_decider() {
     assert_eq!(
         m.block_on(
             m.host
-                .decide_approval(&a, &s, &id, DecisionInput::Allow, Some(forged))
+                .decide_approval(&a, &s, &id, DecisionInput::Allow, None, Some(forged))
         ),
         Err(HostError::MissingUserAction)
     );
@@ -204,7 +204,7 @@ fn approvals_need_a_user_action_and_the_right_decider() {
     assert_eq!(
         m.block_on(
             m.host
-                .decide_approval(&view, &s, &id, DecisionInput::Allow, Some(t))
+                .decide_approval(&view, &s, &id, DecisionInput::Allow, None, Some(t))
         ),
         Err(HostError::NotAllowedToDecide)
     );
@@ -217,6 +217,7 @@ fn approvals_need_a_user_action_and_the_right_decider() {
         &s,
         &id,
         DecisionInput::Text("hmm, later".into()),
+        None,
         Some(t.clone()),
     ))
     .unwrap();
@@ -229,7 +230,7 @@ fn approvals_need_a_user_action_and_the_right_decider() {
     assert_eq!(
         m.block_on(
             m.host
-                .decide_approval(&shell, &s, &id, DecisionInput::Allow, Some(t))
+                .decide_approval(&shell, &s, &id, DecisionInput::Allow, None, Some(t))
         ),
         Err(HostError::AlreadyDecided)
     );

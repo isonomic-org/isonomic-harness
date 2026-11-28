@@ -76,6 +76,7 @@ fn two_sessions_with_the_same_approval_id_stay_apart() {
             &sb,
             &id,
             DecisionInput::Allow,
+            None,
             Some(for_a.clone())
         )),
         Err(HostError::MissingUserAction)
@@ -85,7 +86,7 @@ fn two_sessions_with_the_same_approval_id_stay_apart() {
     assert_eq!(
         m.block_on(
             m.host
-                .decide_approval(&a, &sb, &id, DecisionInput::Allow, Some(own))
+                .decide_approval(&a, &sb, &id, DecisionInput::Allow, None, Some(own))
         ),
         Err(HostError::NotFound)
     );
@@ -94,7 +95,7 @@ fn two_sessions_with_the_same_approval_id_stay_apart() {
     m.model.text("Posted.");
     m.block_on(
         m.host
-            .decide_approval(&shell, &sa, &id, DecisionInput::Deny, Some(for_a.clone())),
+            .decide_approval(&shell, &sa, &id, DecisionInput::Deny, None, Some(for_a.clone())),
     )
     .unwrap();
     assert_eq!((decisions(&m, &sa), decisions(&m, &sb)), (1, 0));
@@ -104,7 +105,7 @@ fn two_sessions_with_the_same_approval_id_stay_apart() {
     assert_eq!(
         m.block_on(
             m.host
-                .decide_approval(&shell, &sa, &id, DecisionInput::Allow, Some(for_a))
+                .decide_approval(&shell, &sa, &id, DecisionInput::Allow, None, Some(for_a))
         ),
         Err(HostError::AlreadyDecided)
     );
@@ -113,7 +114,7 @@ fn two_sessions_with_the_same_approval_id_stay_apart() {
     assert_eq!(
         m.block_on(
             m.host
-                .decide_approval(&b, &sa, &id, DecisionInput::Allow, Some(own))
+                .decide_approval(&b, &sa, &id, DecisionInput::Allow, None, Some(own))
         ),
         Err(HostError::NotFound)
     );
@@ -123,7 +124,7 @@ fn two_sessions_with_the_same_approval_id_stay_apart() {
     m.model.text("Not posted.");
     m.block_on(
         m.host
-            .decide_approval(&shell, &sb, &id, DecisionInput::Deny, Some(for_b)),
+            .decide_approval(&shell, &sb, &id, DecisionInput::Deny, None, Some(for_b)),
     )
     .unwrap();
     assert_eq!(decisions(&m, &sb), 1);
@@ -320,7 +321,7 @@ fn a_parent_and_its_fork_with_the_same_approval_id_stay_apart() {
     m.model.text("Not posted.");
     m.block_on(
         m.host
-            .decide_approval(&shell, &child, &id, DecisionInput::Deny, Some(token)),
+            .decide_approval(&shell, &child, &id, DecisionInput::Deny, None, Some(token)),
     )
     .unwrap();
     assert_eq!((decisions(&m, &parent), decisions(&m, &child)), (0, 1));

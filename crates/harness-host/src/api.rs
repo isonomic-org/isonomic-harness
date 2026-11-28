@@ -42,6 +42,10 @@ impl Host {
                 .deps
                 .locale
                 .context(&slot.app, &id, me.now(), slot.location_opt_in);
+            let context = RequestContext {
+                folders: me.folders(&slot),
+                ..context
+            };
             let outs = me
                 .apply(
                     &slot,
@@ -99,6 +103,7 @@ impl Host {
         session: &SessionId,
         id: &ApprovalId,
         decision: DecisionInput,
+        remember: Option<Remember>,
         token: Option<UserActionToken>,
     ) -> Fut<'_, ()> {
         let (me, caller, id) = (self.0.clone(), caller.clone(), id.clone());
@@ -134,8 +139,15 @@ impl Host {
             )?;
             let slot = me.slot(&pending.session).ok_or(HostError::NotFound)?;
             let (decision, basis, answer) = interpret(&decision);
+            let limit = pending.request.remember.clone().unwrap_or(Remember::Once);
+            let remember = remember
+                .map(|r| r.at_most(&limit))
+                .filter(|r| verified && decision == Decision::Allow && r.rank() > 0);
+            if let Some(how) = &remember {
+                me.remember(&pending.session, &pending.owner, &pending.request, how);
+            }
             let d = ApprovalDecision {
-                remember: None,
+                remember,
                 approval: id,
                 decision,
                 basis,
@@ -312,6 +324,7 @@ impl Host {
                 }
             }
             st.approvals.drop_sessions(&ids);
+            me.forget_grants(&ids);
             st.decided.retain(|(s, _)| !ids.contains(s));
             st.questions.retain(|(s, _)| !ids.contains(s));
             st.client_calls.retain(|(s, _)| !ids.contains(s));
