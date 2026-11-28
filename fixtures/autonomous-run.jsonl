@@ -1,4 +1,4 @@
-{"format":"isonomic.session-log","version":1,"revision":1}
+{"format":"isonomic.session-log","version":1,"revision":2}
 {"session":"ses_0001","seq":1,"at":1794646800000,"type":"session.start","class":"autonomous","app":"agents","principal":{"kind":"agent","id":"agt_0001"},"preset":{"id":"test","version":1},"profile":"standard"}
 {"session":"ses_0001","seq":2,"at":1794646800000,"type":"system","origin":"preset","text":"You are a research agent. Work through the task with your tools and report briefly."}
 {"session":"ses_0001","seq":3,"at":1794646800000,"turn":"trn_0001","type":"turn.start","cause":"wake","wake":{"source":"schedule","id":"daily-digest"}}
