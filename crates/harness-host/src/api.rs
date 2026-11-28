@@ -238,6 +238,7 @@ impl Host {
             }
             let done = match outcome {
                 ClientOutcome::Ok(content) => harness_tools::ToolDone {
+                    meta: None,
                     outcome: ToolOutcome::Ok,
                     content,
                     error: None,
@@ -245,6 +246,7 @@ impl Host {
                     artifacts: Vec::new(),
                 },
                 ClientOutcome::Error(err, content) => harness_tools::ToolDone {
+                    meta: None,
                     outcome: ToolOutcome::Error,
                     content,
                     error: Some(err),

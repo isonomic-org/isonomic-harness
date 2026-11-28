@@ -247,6 +247,9 @@ pub struct Preset {
     pub tools: ToolSettings,
     /// Display widgets.
     pub display: DisplaySettings,
+    /// Tool kit families, in priority order (`docs/kits.md`). Kit tools
+    /// are not listed in `tools.allow`.
+    pub kits: Vec<String>,
     /// Budget limits.
     pub limits: Limits,
     /// The policy profile.

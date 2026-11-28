@@ -23,6 +23,7 @@
 mod context;
 mod display;
 mod machine;
+mod resolve;
 mod steps;
 mod stop;
 mod subagent;
@@ -36,11 +37,12 @@ pub use subagent::{
     check_delegation, Activation, Delegation, DelegationError, FakeActivation, MAX_DEPTH,
 };
 
+use harness_core::access::{Access, GrantAnswer};
 use harness_core::*;
 use harness_log::ModelEvent;
 use harness_policy::Limits;
 use harness_preset::Preset;
-use harness_tools::ToolOutput;
+use harness_tools::{ToolDone, ToolOutput};
 
 /// What one session runs with.
 #[derive(Clone, Debug)]
@@ -196,6 +198,14 @@ pub enum Input {
     /// An approval was decided. The host has checked who decided and their
     /// user-action token.
     Decision(ApprovalDecision),
+    /// The host resolved a kit call ([`Output::Resolve`]): the access and
+    /// the grant check's answer, or the failure that is the call's result.
+    Resolved {
+        /// The call.
+        call: CallId,
+        /// What resolving and the grant check said.
+        result: Result<(Access, GrantAnswer), ToolDone>,
+    },
     /// A question was answered.
     Answer(Answer),
     /// The owner app disconnected.
@@ -228,6 +238,15 @@ pub enum Output {
     CancelRequest(StepId),
     /// Run this call: an engine tool in the host, a client tool in the app.
     RunTool {
+        /// The call as recorded.
+        call: ToolCall,
+        /// Its tool.
+        spec: ToolSpec,
+    },
+    /// Resolve a kit call (its spec has a scope) before policy judges it:
+    /// ask the tool for its access and the grants for the tool's act on
+    /// that scope, then answer with [`Input::Resolved`].
+    Resolve {
         /// The call as recorded.
         call: ToolCall,
         /// Its tool.

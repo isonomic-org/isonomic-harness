@@ -21,6 +21,7 @@ fn poll<T>(f: BoxFuture<'_, T>) -> T {
 
 fn cx(session: &str) -> ToolCtx {
     ToolCtx {
+        result_cap: None,
         session: SessionId::from(session),
         app: AppId::from("chat"),
         call: CallId::from("cal_0001"),

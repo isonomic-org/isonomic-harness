@@ -208,6 +208,7 @@ fn build(c: &mut Check, f: PresetFile) -> Preset {
         client: f.tools.client,
     };
     let display = display_settings(c, &f.display, &class);
+    let kits = kit_settings(c, &f.kits.kits);
 
     let limits = Limits {
         tokens: c.limit("limits.tokens", f.limits.tokens),
@@ -355,6 +356,7 @@ fn build(c: &mut Check, f: PresetFile) -> Preset {
         model,
         tools,
         display,
+        kits,
         limits,
         policy,
         context,
@@ -362,6 +364,23 @@ fn build(c: &mut Check, f: PresetFile) -> Preset {
         compaction,
         wake,
     }
+}
+
+/// The kits a preset names: each one of `harness_core::offer::KITS`; a
+/// duplicate warns and is kept once.
+fn kit_settings(c: &mut Check, kits: &[String]) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for (i, k) in kits.iter().enumerate() {
+        let path = format!("kits.use[{i}]");
+        if !harness_core::offer::KITS.contains(&k.as_str()) {
+            c.error(&path, format!("\"{k}\" is not a tool kit"));
+        } else if out.contains(k) {
+            c.warn(&path, format!("\"{k}\" is listed twice"));
+        } else {
+            out.push(k.clone());
+        }
+    }
+    out
 }
 
 /// At most this many display tools in an interactive preset.

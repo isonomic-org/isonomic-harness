@@ -60,6 +60,15 @@ pub fn offer(profile: Option<&Profile>, model: &str, calls_tools: bool) -> Offer
     }
 }
 
+/// Which kit a tool belongs to, from its spec in harness-core.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct KitMember {
+    /// One of [`KITS`].
+    pub kit: &'static str,
+    /// A core tool, admitted before the kit's others.
+    pub core: bool,
+}
+
 /// One kit tool as the offer rule sees it.
 #[derive(Clone, Copy, Debug)]
 pub struct KitCandidate<'a> {

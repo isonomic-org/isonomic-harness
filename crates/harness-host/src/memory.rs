@@ -272,6 +272,8 @@ pub struct MemoryHost {
     pub spawner: Arc<MemorySpawner>,
     /// The clock.
     pub clock: Arc<ManualClock>,
+    /// Grants for the tool kits: none issued until a test issues them.
+    pub grants: Arc<harness_toolkit::MemoryGrants>,
 }
 
 /// The configuration MemoryHost uses unless told otherwise.
@@ -313,6 +315,7 @@ impl MemoryHost {
         let clients = Arc::new(MemoryClients::default());
         let scopes = Arc::new(MemoryScopes::default());
         let blobs = Arc::new(MemoryBlobs::default());
+        let grants = Arc::new(harness_toolkit::MemoryGrants::default());
         let deps = Deps {
             store: store.clone(),
             model: model.clone(),
@@ -323,6 +326,7 @@ impl MemoryHost {
             clock: clock.clone(),
             executor: Arc::new(InProcessExecutor::new(spawner.clone())),
             locale: Arc::new(FixedLocale),
+            grants: Some(grants.clone()),
         };
         Self {
             host: Host::new(deps, cfg),
@@ -333,6 +337,7 @@ impl MemoryHost {
             blobs,
             spawner,
             clock,
+            grants,
         }
     }
 

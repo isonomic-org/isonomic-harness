@@ -27,6 +27,9 @@ pub struct ToolDone {
     pub truncated: Option<Truncation>,
     /// Artifacts written, recorded before the result.
     pub artifacts: Vec<ArtifactEvent>,
+    /// Structured facts for the person's view and the audit, recorded as
+    /// the result's `meta`. Never part of model history.
+    pub meta: Option<Value>,
 }
 
 impl ToolDone {
@@ -74,6 +77,7 @@ impl ToolDone {
 
     fn with(outcome: ToolOutcome, content: Vec<Block>, error: Option<ErrorInfo>) -> Self {
         Self {
+            meta: None,
             outcome,
             content,
             error,

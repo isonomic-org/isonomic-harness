@@ -73,8 +73,14 @@ impl Inner {
         preset: &Preset,
     ) -> Arc<Slot> {
         let now = self.now();
-        let mut registry = self.registry_for(preset, &meta.app);
-        registry.retain_named(&preset.tools.allow);
+        let kits: Vec<String> = cfg
+            .tools
+            .iter()
+            .filter(|t| t.scope.is_some())
+            .map(|t| t.name.clone())
+            .collect();
+        let result_cap = self.result_cap(&cfg);
+        let registry = self.registry_for(preset, &meta.app, &kits);
         Arc::new(Slot {
             id: meta.id.clone(),
             app: meta.app.clone(),
@@ -93,6 +99,8 @@ impl Inner {
             inject_hang: AtomicBool::new(false),
             registry: Mutex::new(registry),
             meter: Mutex::new(Meter::start(now)),
+            scopes: Mutex::default(),
+            result_cap,
         })
     }
 
@@ -114,11 +122,12 @@ impl Inner {
     pub(crate) fn loop_config(
         &self,
         preset: &Preset,
-        app: &AppId,
-        profile: Option<Profile>,
+        (app, session): (&AppId, &SessionId),
+        (profile, model): (Option<Profile>, Option<&str>),
         limits: Option<harness_policy::Limits>,
     ) -> harness_loop::Config {
-        let specs = self.registry_for(preset, app).specs();
+        let kits = self.kit_tools(preset, app, session, profile.as_ref(), model);
+        let specs = self.registry_for(preset, app, &kits).specs();
         let mut cfg = harness_loop::Config::new(preset.clone(), profile, specs);
         if let Some(l) = limits {
             cfg.limits = cfg.limits.tighten(&l);
@@ -159,7 +168,7 @@ impl Inner {
                 let preset = stored.and_then(|p| p.preset).ok_or(HostError::NotFound)?;
                 let model = harness_loop::picked_model(model.as_deref());
                 let cfg = self.model_config(
-                    self.loop_config(&preset, &meta.app, profile, None),
+                    self.loop_config(&preset, (&meta.app, id), (profile, model.as_deref()), None),
                     model.as_deref(),
                 );
                 // The log is the source for the model; a registry row that
@@ -281,7 +290,12 @@ impl Host {
                 model,
             };
             let cfg = me.model_config(
-                me.loop_config(&p, &start.app, start.profile.clone(), opts.limits),
+                me.loop_config(
+                    &p,
+                    (&start.app, &id),
+                    (start.profile.clone(), start.model.as_deref()),
+                    opts.limits,
+                ),
                 start.model.as_deref(),
             );
             let model = start.model.clone();

@@ -19,6 +19,7 @@ pub struct PresetFile {
     pub model: ModelFile,
     pub tools: ToolsFile,
     pub display: DisplayFile,
+    pub kits: KitsFile,
     pub limits: LimitsFile,
     pub policy: PolicyFile,
     pub context: ContextFile,
@@ -79,6 +80,14 @@ impl Default for ToolsFile {
             client: true,
         }
     }
+}
+
+/// `[kits]`.
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields, default)]
+pub struct KitsFile {
+    #[serde(rename = "use")]
+    pub kits: Vec<String>,
 }
 
 /// `[display]`.

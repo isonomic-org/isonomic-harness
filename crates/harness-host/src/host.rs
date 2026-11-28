@@ -14,7 +14,7 @@ use harness_log::{ModelEvent, SessionMeta};
 use harness_loop::{Input as LoopInput, Output, Session};
 use harness_policy::{Approvals, Limits, Meter};
 use harness_preset::Ceiling;
-use harness_tools::{Handler, Registry, Tool, ToolCtx};
+use harness_tools::{Handler, Registry, Tool};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering::SeqCst};
@@ -41,6 +41,9 @@ pub struct Deps {
     pub executor: Arc<dyn Executor>,
     /// The person's locale.
     pub locale: Arc<dyn Locale>,
+    /// Grants, for the tool kits (`docs/kits.md`); `None` offers no kit
+    /// tool.
+    pub grants: Option<Arc<dyn harness_toolkit::Grants>>,
 }
 
 /// Host settings.
@@ -94,6 +97,10 @@ pub(crate) struct Slot {
     pub(crate) inject_hang: AtomicBool,
     pub(crate) registry: Mutex<Registry>,
     pub(crate) meter: Mutex<Meter>,
+    /// The scope each resolved kit call touches, until it runs.
+    pub(crate) scopes: Mutex<BTreeMap<CallId, harness_core::access::Scope>>,
+    /// The largest kit result, from the capability table.
+    pub(crate) result_cap: Option<usize>,
 }
 
 pub(crate) struct Inner {
@@ -341,6 +348,7 @@ impl Inner {
                 }
             }
             Output::RunTool { call, spec } => self.run_tool(slot, call, spec),
+            Output::Resolve { call, spec } => self.resolve_call(slot, call, spec),
             Output::CancelTool(call) => {
                 lock(&self.state)
                     .client_calls
@@ -418,13 +426,12 @@ impl Inner {
                     Some(Handler::Engine(t)) => t,
                     _ => return,
                 };
-                let ctx = ToolCtx {
-                    session: slot.id.clone(),
-                    app: slot.app.clone(),
-                    call: call.call.clone(),
-                    now: self.now(),
-                    child: call.child.clone(),
-                };
+                if let Some(done) = self.recheck(slot, &call.call, &spec) {
+                    let output = crate::kits::refused(done);
+                    self.feed(slot, LoopInput::Tool { call: call.call, output });
+                    return;
+                }
+                let ctx = self.tool_ctx(slot, &call);
                 let (me, s) = (self.clone(), slot.clone());
                 let task = async move {
                     let out = CatchUnwind(Box::pin(tool.call(&call.input, &ctx))).await;
@@ -474,10 +481,19 @@ impl Inner {
     }
 
     /// The tools a preset offers in a session, and the registry behind them.
-    pub(crate) fn registry_for(&self, preset: &harness_preset::Preset, app: &AppId) -> Registry {
+    /// The engine tools a session of `app` may call: the preset's
+    /// allow-list, and the kit tools admitted for it (`kits`).
+    pub(crate) fn registry_for(
+        &self,
+        preset: &harness_preset::Preset,
+        app: &AppId,
+        kits: &[String],
+    ) -> Registry {
         let mut r = Registry::new();
         for t in &self.cfg.tools {
-            if preset.tools.allow.contains(&t.spec().name) && t.offered(app) {
+            let name = t.spec().name;
+            let named = preset.tools.allow.contains(&name) || kits.contains(&name);
+            if named && t.offered(app) {
                 r.add_engine(t.clone());
             }
         }
