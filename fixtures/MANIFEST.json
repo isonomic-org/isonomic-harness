@@ -62,6 +62,15 @@
       "fnv1a64": "46d0839133862b8a",
       "name": "display",
       "sessions": 1
+    },
+    {
+      "bytes": 16210,
+      "committed": true,
+      "events": 64,
+      "file": "kits-offer.jsonl",
+      "fnv1a64": "cc5d4ee3fe8fbae1",
+      "name": "kits-offer",
+      "sessions": 8
     }
   ],
   "format": "isonomic.session-log",

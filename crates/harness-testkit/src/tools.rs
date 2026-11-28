@@ -216,3 +216,68 @@ pub fn insert_block() -> ToolSpec {
         Concurrency::Serial,
     )
 }
+
+/// Fake kit tools for the kits-offer fixture, with the kit each belongs to
+/// and whether it is a core tool. Stand-ins until the kits ship their own
+/// specs; only their scope and effects matter to the offer rule.
+pub fn kit_fakes() -> Vec<(ToolSpec, &'static str, bool)> {
+    let kit = |name: &str, what: &str, scope: ScopeKind, effect: Effect| {
+        let mut t = engine(name, what, vec![("path", "string")]);
+        t.effects = vec![effect];
+        t.scope = Some(scope);
+        t.concurrency = Concurrency::Serial;
+        t
+    };
+    vec![
+        (
+            kit(
+                "read_file",
+                "Read a file.",
+                ScopeKind::Folder,
+                Effect::ReadsPrivateData,
+            ),
+            "files",
+            true,
+        ),
+        (
+            kit(
+                "list_folder",
+                "List a folder.",
+                ScopeKind::Folder,
+                Effect::ReadsPrivateData,
+            ),
+            "files",
+            true,
+        ),
+        (
+            kit(
+                "write_file",
+                "Write a file.",
+                ScopeKind::Folder,
+                Effect::ModifiesData,
+            ),
+            "files",
+            false,
+        ),
+        (
+            kit(
+                "run_command",
+                "Run a command.",
+                ScopeKind::Folder,
+                Effect::ExecutesCode,
+            ),
+            "shell",
+            true,
+        ),
+        (
+            kit(
+                "web_fetch",
+                "Fetch a page.",
+                ScopeKind::Web,
+                Effect::IngestsUntrustedContent,
+            ),
+            "web",
+            true,
+        ),
+    ]
+}

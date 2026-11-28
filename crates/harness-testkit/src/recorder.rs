@@ -161,6 +161,11 @@ impl Recorder {
 
     /// `system(context)`: what the context link adds to the turn.
     pub fn context(&mut self, cx: &mut Ctx, location: Option<&str>) {
+        self.context_with(cx, location, Vec::new());
+    }
+
+    /// `system(context)` naming the linked folders.
+    pub fn context_with(&mut self, cx: &mut Ctx, location: Option<&str>, folders: Vec<String>) {
         let (date, long) = civil_date(self.now);
         let mut text = format!("Current date: {long} (America/New_York). Language: en.");
         if let Some(place) = location {
@@ -175,7 +180,7 @@ impl Recorder {
                 memory_policy: None,
                 text,
                 context: Some(RequestContext {
-                    folders: Vec::new(),
+                    folders,
                     date,
                     time_zone: "America/New_York".into(),
                     language: "en".into(),
