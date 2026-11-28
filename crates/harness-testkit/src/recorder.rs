@@ -161,10 +161,18 @@ impl Recorder {
 
     /// `system(context)`: what the context link adds to the turn.
     pub fn context(&mut self, cx: &mut Ctx, location: Option<&str>) {
+        self.context_with(cx, location, Vec::new());
+    }
+
+    /// `system(context)` naming the linked folders.
+    pub fn context_with(&mut self, cx: &mut Ctx, location: Option<&str>, folders: Vec<String>) {
         let (date, long) = civil_date(self.now);
         let mut text = format!("Current date: {long} (America/New_York). Language: en.");
         if let Some(place) = location {
             text.push_str(&format!(" Location: {place}."));
+        }
+        if !folders.is_empty() {
+            text.push_str(&format!(" Linked folders: {}.", folders.join(", ")));
         }
         cx.history_bytes += text.len() as u64;
         self.emit(
@@ -175,6 +183,7 @@ impl Recorder {
                 memory_policy: None,
                 text,
                 context: Some(RequestContext {
+                    folders,
                     date,
                     time_zone: "America/New_York".into(),
                     language: "en".into(),

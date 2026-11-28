@@ -78,6 +78,9 @@ pub fn context_text(
         (Some(place), LocationMode::OptIn) => parts.push(format!("Location: {place}.")),
         _ => kept.location = None,
     }
+    if !given.folders.is_empty() {
+        parts.push(format!("Linked folders: {}.", given.folders.join(", ")));
+    }
     if parts.is_empty() {
         return None;
     }

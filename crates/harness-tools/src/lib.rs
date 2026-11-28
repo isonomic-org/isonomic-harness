@@ -27,7 +27,9 @@ pub use guard::{guard, GuardFailure};
 pub use output::{limit_output, QuestionSpec, ToolDone, ToolOutput};
 pub use registry::{Entry, Handler, Registry, RegistryError};
 
+use harness_core::access::Access;
 use harness_core::future::BoxFuture;
+use harness_core::offer::KitMember;
 use harness_core::*;
 
 /// What an engine tool knows about the call it serves.
@@ -43,6 +45,10 @@ pub struct ToolCtx {
     pub now: Millis,
     /// For a delegating tool: the child session to create.
     pub child: Option<SessionId>,
+    /// The largest result a kit tool should return, in bytes, from the
+    /// capability table; `None` when the session has no kit tools. The
+    /// output limit's cut stays the backstop.
+    pub result_cap: Option<usize>,
 }
 
 /// An engine tool.
@@ -58,5 +64,25 @@ pub trait Tool: Send + Sync {
     /// no, so the model is not handed a tool it cannot use. Yes by default.
     fn offered(&self, _app: &AppId) -> bool {
         true
+    }
+
+    /// The kit this tool belongs to, for a kit tool. Kit tools are offered
+    /// by the preset's `[kits]`, the grants and the capability table, never
+    /// by `tools.allow`. `None`, the default, for every other tool.
+    fn kit(&self) -> Option<KitMember> {
+        None
+    }
+
+    /// For a kit tool (a spec with a scope): resolve what the call will
+    /// touch before policy judges it, opening it and keeping it open for
+    /// the run. A failure is the call's result. `None`, the default, means
+    /// the tool has nothing to resolve; a tool with a scope that returns
+    /// `None` is refused.
+    fn access<'a>(
+        &'a self,
+        _input: &'a Value,
+        _cx: &'a ToolCtx,
+    ) -> Option<BoxFuture<'a, Result<Access, ToolDone>>> {
+        None
     }
 }

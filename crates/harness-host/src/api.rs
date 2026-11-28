@@ -42,6 +42,10 @@ impl Host {
                 .deps
                 .locale
                 .context(&slot.app, &id, me.now(), slot.location_opt_in);
+            let context = RequestContext {
+                folders: me.folders(&slot),
+                ..context
+            };
             let outs = me
                 .apply(
                     &slot,
@@ -99,6 +103,7 @@ impl Host {
         session: &SessionId,
         id: &ApprovalId,
         decision: DecisionInput,
+        remember: Option<Remember>,
         token: Option<UserActionToken>,
     ) -> Fut<'_, ()> {
         let (me, caller, id) = (self.0.clone(), caller.clone(), id.clone());
@@ -134,7 +139,12 @@ impl Host {
             )?;
             let slot = me.slot(&pending.session).ok_or(HostError::NotFound)?;
             let (decision, basis, answer) = interpret(&decision);
+            let limit = pending.request.remember.clone().unwrap_or(Remember::Once);
+            let remember = remember
+                .map(|r| r.at_most(&limit))
+                .filter(|r| verified && decision == Decision::Allow && r.rank() > 0);
             let d = ApprovalDecision {
+                remember: remember.clone(),
                 approval: id,
                 decision,
                 basis,
@@ -142,7 +152,14 @@ impl Host {
                 answer,
                 reason: None,
             };
-            me.apply(&slot, LoopInput::Decision(d)).await;
+            let outs = me.apply(&slot, LoopInput::Decision(d)).await;
+            // Remembered only once the loop took the decision.
+            let taken = !outs
+                .iter()
+                .any(|o| matches!(o, harness_loop::Output::Refused(_)));
+            if let (true, Some(how)) = (taken, &remember) {
+                me.remember(&pending.session, &pending.owner, &pending.request, how);
+            }
             Ok(())
         })
     }
@@ -237,6 +254,7 @@ impl Host {
             }
             let done = match outcome {
                 ClientOutcome::Ok(content) => harness_tools::ToolDone {
+                    meta: None,
                     outcome: ToolOutcome::Ok,
                     content,
                     error: None,
@@ -244,6 +262,7 @@ impl Host {
                     artifacts: Vec::new(),
                 },
                 ClientOutcome::Error(err, content) => harness_tools::ToolDone {
+                    meta: None,
                     outcome: ToolOutcome::Error,
                     content,
                     error: Some(err),
@@ -309,6 +328,7 @@ impl Host {
                 }
             }
             st.approvals.drop_sessions(&ids);
+            me.forget_grants(&ids);
             st.decided.retain(|(s, _)| !ids.contains(s));
             st.questions.retain(|(s, _)| !ids.contains(s));
             st.client_calls.retain(|(s, _)| !ids.contains(s));

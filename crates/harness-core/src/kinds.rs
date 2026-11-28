@@ -173,6 +173,8 @@ open_enum!(
         ActsOutward,
         /// It runs code.
         ExecutesCode,
+        /// It changes the person's data on this device (tool kits).
+        ModifiesData,
     }
 );
 
@@ -239,6 +241,35 @@ open_enum!(
         ThreeFlag,
         /// The session's autonomy level requires it.
         Autonomy,
+        /// No standing permission covers this call, or it cannot be undone
+        /// (tool kits).
+        Grant,
+    }
+);
+
+open_enum!(
+    /// The kind of thing a kit call touches (tool kits).
+    ScopeKind {
+        /// A linked folder.
+        Folder,
+        /// The web: pages or search.
+        Web,
+        /// One site, by its registered name.
+        Site,
+        /// The person's own skills.
+        Skills,
+    }
+);
+
+open_enum!(
+    /// How long an approval's allow is remembered (tool kits).
+    Remember {
+        /// For this call only.
+        Once,
+        /// For the rest of this session. A fork does not inherit it.
+        Session,
+        /// Until revoked in Settings.
+        Always,
     }
 );
 

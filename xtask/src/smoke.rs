@@ -237,6 +237,7 @@ pub fn run() -> Result<(), String> {
                 Output::RunTool { call, .. } => {
                     calls.push(call.tool.clone());
                     let cx = ToolCtx {
+                        result_cap: None,
                         session: id.clone(),
                         app: AppId::from("smoke"),
                         call: call.call.clone(),

@@ -133,6 +133,10 @@ pub struct RequestContext {
     /// Their location, only when they opted in.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub location: Option<String>,
+    /// The names of the app's linked folders, so the model does not spend a
+    /// call to learn them (tool kits).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub folders: Vec<String>,
 }
 
 /// `turn.start`.
@@ -206,6 +210,10 @@ pub struct ToolSpec {
     pub effects: Vec<Effect>,
     /// How it runs alongside other calls.
     pub concurrency: Concurrency,
+    /// The kind of thing a kit tool touches (tool kits). Absent on every
+    /// other tool, which then skips resolving.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scope: Option<ScopeKind>,
 }
 
 /// `assistant`: a reply the model completed or that was sealed.
@@ -301,6 +309,11 @@ pub struct ToolResult {
     /// For a display call only: shown, retry or fallback (revision 1).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub display: Option<DisplayOutcome>,
+    /// Structured facts for the person's view and the audit: scope,
+    /// backend, exit code, changed path, pre-image id (tool kits). Never
+    /// part of model history.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub meta: Option<Value>,
 }
 
 /// Output kept from a long result: the first and last bytes.
@@ -312,103 +325,6 @@ pub struct Truncation {
     pub head_bytes: u64,
     /// Bytes kept from the end.
     pub tail_bytes: u64,
-}
-
-/// `approval.request`.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ApprovalRequest {
-    /// The approval.
-    pub approval: ApprovalId,
-    /// The tool call it gates.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub call: Option<CallId>,
-    /// What will happen, for the person.
-    pub summary: String,
-    /// The rule that asked.
-    pub rule: ApprovalRule,
-    /// The effects at stake.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub effects: Vec<Effect>,
-    /// When it times out as a denial.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub expires_at: Option<Millis>,
-}
-
-/// `approval.decision`.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ApprovalDecision {
-    /// The approval.
-    pub approval: ApprovalId,
-    /// Allow or deny.
-    pub decision: Decision,
-    /// What the decision rests on.
-    pub basis: Basis,
-    /// Who decided.
-    pub by: Decider,
-    /// The answer as given, when it was ambiguous.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub answer: Option<String>,
-    /// A reason, for the log.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub reason: Option<String>,
-}
-
-/// Who decided an approval or answered a question.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Decider {
-    /// Shell, app or host.
-    pub scope: DeciderScope,
-    /// The app, for an app.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub app: Option<AppId>,
-}
-
-/// `question`: from the ask-user tool.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Question {
-    /// The question.
-    pub question: QuestionId,
-    /// The ask-user call.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub call: Option<CallId>,
-    /// What is asked.
-    pub prompt: String,
-    /// Choices, if any.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub options: Vec<Choice>,
-    /// More than one choice allowed.
-    #[serde(default, skip_serializing_if = "is_false")]
-    pub multiple: bool,
-    /// Free text allowed.
-    #[serde(default, skip_serializing_if = "is_false")]
-    pub free_text: bool,
-}
-
-/// A choice in a question.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Choice {
-    /// Its id.
-    pub id: String,
-    /// Its label.
-    pub label: String,
-}
-
-/// `answer`.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Answer {
-    /// The question.
-    pub question: QuestionId,
-    /// Chosen option ids.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub selected: Vec<String>,
-    /// Free text.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub text: Option<String>,
-    /// The person declined to answer.
-    #[serde(default, skip_serializing_if = "is_false")]
-    pub skipped: bool,
-    /// Who answered.
-    pub by: Decider,
 }
 
 /// `artifact`.

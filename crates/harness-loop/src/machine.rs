@@ -289,6 +289,7 @@ impl Session {
             Input::ModelError(err) => self.model_error(err),
             Input::Tool { call, output } => self.tool_output(call, output),
             Input::Decision(d) => self.decision(d),
+            Input::Resolved { call, result } => self.resolved(call, result),
             Input::Answer(a) => self.answer(a),
             Input::ClientGone => self.client_gone(),
             Input::ClientBack => self.client_back(),

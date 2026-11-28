@@ -29,6 +29,7 @@ mod api;
 mod events;
 pub mod exec;
 mod host;
+mod kits;
 mod memory;
 mod sessions;
 pub mod traits;

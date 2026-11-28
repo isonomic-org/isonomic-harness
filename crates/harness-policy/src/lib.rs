@@ -19,6 +19,11 @@ mod budget;
 pub use approvals::{Approvals, PendingApproval};
 pub use budget::{Limits, Meter};
 
+#[cfg(test)]
+#[path = "verdict_tests.rs"]
+mod verdict_tests;
+
+use harness_core::access::{Access, GrantAnswer};
 use harness_core::*;
 
 /// What kind of app a caller is.
@@ -136,32 +141,80 @@ pub struct Policy {
     pub allow_outward: Vec<String>,
 }
 
+/// What resolving and the grant check said about a kit call (a tool with
+/// a scope). Resolving failures never get here: they are the call's result.
+#[derive(Clone, Copy, Debug)]
+pub struct Resolved<'a> {
+    /// What the call touches.
+    pub access: &'a Access,
+    /// The grant check's answer for the tool's act on that scope.
+    pub grant: &'a GrantAnswer,
+}
+
 impl Policy {
-    /// Judge a call to `spec` given the session's flags.
+    /// Judge a call to `spec` given the session's flags: a tool without a
+    /// scope, as [`judge`](Self::judge) with nothing resolved.
     pub fn evaluate(&self, spec: &ToolSpec, flags: &Flags) -> Verdict {
+        self.judge(spec, flags, None)
+    }
+
+    /// Judge a call: the first row of "How a call is decided" that applies
+    /// (`docs/kits.md`). The call is judged on the effects its access
+    /// reports, when a confined access reports any.
+    pub fn judge(&self, spec: &ToolSpec, flags: &Flags, resolved: Option<Resolved<'_>>) -> Verdict {
         if spec.kind == ToolKind::Cell {
             return Verdict::Deny("Cell tools are not available yet.".into());
         }
-        let has = |e: Effect| spec.effects.contains(&e);
-        if self.autonomy == Autonomy::Strict && !spec.effects.is_empty() {
-            if flags.three_flag() && has(Effect::ActsOutward) {
-                return Verdict::Ask(ApprovalRule::ThreeFlag);
-            }
+        if let Some(GrantAnswer::Deny(reason)) = resolved.map(|r| r.grant) {
+            return Verdict::Deny(reason.clone());
+        }
+        let access = resolved.map(|r| r.access);
+        let effects = Access::narrow(access, &spec.effects);
+        let has = |e: Effect| effects.contains(&e);
+        let confined = access.is_some_and(|a| a.confined);
+        if has(Effect::ActsOutward) && flags.three_flag() {
+            return Verdict::Ask(ApprovalRule::ThreeFlag);
+        }
+        if self.autonomy == Autonomy::Strict && !effects.is_empty() {
             return Verdict::Ask(ApprovalRule::Autonomy);
         }
+        if has(Effect::ExecutesCode) && !confined {
+            return Verdict::Ask(ApprovalRule::ExecutesCode);
+        }
         if has(Effect::ActsOutward) {
-            if flags.three_flag() {
-                return Verdict::Ask(ApprovalRule::ThreeFlag);
-            }
-            let pre = self.allow_outward.iter().any(|n| n == &spec.name);
-            if !pre && self.autonomy == Autonomy::Supervised {
+            let asks = match resolved {
+                Some(r) => r.grant == &GrantAnswer::Ask,
+                None => {
+                    let pre = self.allow_outward.iter().any(|n| n == &spec.name);
+                    !pre && self.autonomy == Autonomy::Supervised
+                }
+            };
+            if asks {
                 return Verdict::Ask(ApprovalRule::ActsOutward);
             }
         }
-        if has(Effect::ExecutesCode) {
-            return Verdict::Ask(ApprovalRule::ExecutesCode);
+        if has(Effect::ModifiesData) && !confined {
+            let covered =
+                resolved.is_some_and(|r| r.grant == &GrantAnswer::Allow && r.access.reversible);
+            if !covered {
+                return Verdict::Ask(ApprovalRule::Grant);
+            }
         }
         Verdict::Allow
+    }
+}
+
+/// The longest an approval under `rule` may be remembered: only once for
+/// the three-flag rule, code, the autonomy level, a call with no access, or
+/// one that cannot be undone; otherwise what the access says.
+pub fn rememberable(rule: &ApprovalRule, access: Option<&Access>) -> Remember {
+    let once_rule = matches!(
+        rule,
+        ApprovalRule::ThreeFlag | ApprovalRule::ExecutesCode | ApprovalRule::Autonomy
+    );
+    match access {
+        Some(a) if !once_rule && a.reversible => a.remember.clone().at_most(&Remember::Always),
+        _ => Remember::Once,
     }
 }
 

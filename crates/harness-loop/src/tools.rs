@@ -7,7 +7,7 @@
 
 use crate::machine::{Phase, Session, Step};
 use crate::*;
-use harness_policy::Verdict;
+use harness_core::access::Access;
 use harness_tools::{guard, limit_output, plan_batches, QuestionSpec, ToolDone};
 use std::collections::BTreeMap;
 
@@ -17,19 +17,22 @@ pub(crate) struct Calls {
     pub(crate) usage: Usage,
     batches: Vec<Vec<CallId>>,
     next: usize,
-    calls: BTreeMap<CallId, Call>,
+    pub(crate) calls: BTreeMap<CallId, Call>,
 }
 
-struct Call {
-    record: ToolCall,
-    spec: Option<ToolSpec>,
-    state: State,
+pub(crate) struct Call {
+    pub(crate) record: ToolCall,
+    pub(crate) spec: Option<ToolSpec>,
+    pub(crate) state: State,
     began: Millis,
+    /// What resolving said, for a kit call.
+    pub(crate) access: Option<Access>,
 }
 
 #[derive(Clone, PartialEq)]
-enum State {
+pub(crate) enum State {
     Waiting,
+    Resolving,
     Approval(ApprovalId, Option<Millis>),
     Question(QuestionId, QuestionSpec),
     Running,
@@ -44,7 +47,7 @@ fn host() -> Decider {
 }
 
 impl Session {
-    fn calls_mut(&mut self) -> Option<&mut Calls> {
+    pub(crate) fn calls_mut(&mut self) -> Option<&mut Calls> {
         match self.turn.as_mut().map(|t| &mut t.phase) {
             Some(Phase::Tools(c)) => Some(c),
             _ => None,
@@ -99,6 +102,7 @@ impl Session {
                     spec,
                     state: State::Waiting,
                     began: self.now,
+                    access: None,
                 },
             );
         }
@@ -146,7 +150,6 @@ impl Session {
     fn dispatch(&mut self, id: CallId) {
         let policy = self.cfg.preset.policy.clone();
         let flags = self.flags;
-        let now = self.now;
         let Some(c) = self.calls_mut() else { return };
         let Some(call) = c.calls.get(&id) else { return };
         let rec = call.record.clone();
@@ -160,33 +163,15 @@ impl Session {
         if let Err(g) = guard(&spec, &rec.input, rec.input_raw.as_deref()) {
             return self.finish(&id, ToolDone::error("tool.input", &g.message), false);
         }
-        match policy.policy.evaluate(&spec, &flags) {
-            Verdict::Allow => self.run(id),
-            Verdict::Deny(reason) => self.finish(&id, ToolDone::denied(&reason), false),
-            Verdict::Ask(rule) => {
-                let approval = ApprovalId::new(self.next_id("apv"));
-                let expires = now + policy.approval_timeout_ms;
-                let step = self.calls_mut().map(|c| c.step.clone());
-                self.emit(
-                    step,
-                    Event::ApprovalRequest(ApprovalRequest {
-                        approval: approval.clone(),
-                        call: Some(id.clone()),
-                        summary: summary(&rec),
-                        rule,
-                        effects: spec.effects.clone(),
-                        expires_at: Some(expires),
-                    }),
-                );
-                if let Some(c) = self.calls_mut().and_then(|c| c.calls.get_mut(&id)) {
-                    c.state = State::Approval(approval, Some(expires));
-                }
-            }
+        if spec.scope.is_some() {
+            return self.resolve(id, rec, spec);
         }
+        let verdict = policy.policy.evaluate(&spec, &flags);
+        self.judged(id, &rec, &spec, verdict);
     }
 
     /// Policy allowed the call: the pre_tool links, then run it.
-    fn run(&mut self, id: CallId) {
+    pub(crate) fn run(&mut self, id: CallId) {
         let now = self.now;
         let Some(call) = self.calls_mut().and_then(|c| c.calls.get_mut(&id)) else {
             return;
@@ -213,7 +198,7 @@ impl Session {
     }
 
     /// Record a call's result (once) and move on when its batch is done.
-    fn finish(&mut self, id: &CallId, done: ToolDone, ran: bool) {
+    pub(crate) fn finish(&mut self, id: &CallId, done: ToolDone, ran: bool) {
         self.finish_as(id, done, ran, None);
     }
 
@@ -237,6 +222,7 @@ impl Session {
         }
         call.state = State::Done;
         let (rec, began) = (call.record.clone(), call.began);
+        let effects = Access::narrow(call.access.as_ref(), &rec.effects);
         let mut done = done;
         if ran {
             for l in &mut self.links {
@@ -252,7 +238,7 @@ impl Session {
             self.emit(Some(step.clone()), Event::Artifact(a));
         }
         if done.outcome == ToolOutcome::Ok {
-            self.flags.note(&rec.effects);
+            self.flags.note(&effects);
         }
         self.emit(
             Some(step),
@@ -264,6 +250,7 @@ impl Session {
                 truncated: done.truncated,
                 duration_ms: ran.then(|| now.saturating_sub(began)),
                 display,
+                meta: done.meta,
             }),
         );
         self.batch_done();
@@ -388,6 +375,7 @@ impl Session {
             .unwrap_or_default();
         for (id, approval) in expired {
             let d = ApprovalDecision {
+                remember: None,
                 approval,
                 decision: Decision::Deny,
                 basis: Basis::Timeout,
@@ -464,6 +452,7 @@ impl Session {
                 }
                 State::Approval(approval, _) => {
                     let d = ApprovalDecision {
+                        remember: None,
                         approval,
                         decision: Decision::Deny,
                         basis: Basis::Cancelled,
@@ -483,7 +472,7 @@ impl Session {
                     };
                     self.emit(Some(step.clone()), Event::Answer(a));
                 }
-                State::Waiting => {}
+                State::Waiting | State::Resolving => {}
             }
             let done = ToolDone::cancelled();
             self.emit(
@@ -496,6 +485,7 @@ impl Session {
                     truncated: None,
                     duration_ms: None,
                     display: None,
+                    meta: None,
                 }),
             );
         }
@@ -505,19 +495,4 @@ impl Session {
         }
         self.end_step(step, outcome, Some(usage));
     }
-}
-
-/// What the person sees on an approval: the tool and its input, short.
-fn summary(rec: &ToolCall) -> String {
-    let input = serde_json::to_string(&rec.input).unwrap_or_default();
-    let mut s = format!("{} {}", rec.tool, input);
-    if s.len() > 200 {
-        let mut cut = 197;
-        while !s.is_char_boundary(cut) {
-            cut -= 1;
-        }
-        s.truncate(cut);
-        s.push('…');
-    }
-    s
 }

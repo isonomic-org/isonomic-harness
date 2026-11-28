@@ -10,6 +10,8 @@
 //! The schema reference is `docs/schema.md`; the JSON Schema is
 //! [`JSON_SCHEMA`], also at `crates/harness-core/schema/session-event.v1.json`.
 
+pub mod access;
+mod approval;
 pub mod block;
 pub mod class;
 pub mod clock;
@@ -21,6 +23,7 @@ pub mod ids;
 mod kinds;
 pub mod live;
 mod memory;
+pub mod offer;
 mod payload;
 pub mod value;
 

@@ -17,6 +17,9 @@ title_model = "test:small"
 allow = ["ask_user", "todo", "plan", "now"]
 client = true
 
+[kits]
+use = ["files"]
+
 [limits]
 tokens = 20000
 steps = 8

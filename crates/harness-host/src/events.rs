@@ -95,6 +95,9 @@ impl Hub {
 }
 
 /// What a subscriber receives next: a durable event or a live delta.
+// Events are the common case; boxing them would cost every subscriber an
+// allocation to save bytes on the rarer deltas.
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, PartialEq)]
 pub enum Update {
     /// A durable event, in `seq` order.
@@ -104,6 +107,7 @@ pub enum Update {
 }
 
 /// What the live queues hold for a waiting subscriber.
+#[allow(clippy::large_enum_variant)]
 enum Ready {
     Delta(LiveDelta),
     Event(SessionEvent),

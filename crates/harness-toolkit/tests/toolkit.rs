@@ -21,6 +21,7 @@ fn poll<T>(f: BoxFuture<'_, T>) -> T {
 
 fn cx(session: &str) -> ToolCtx {
     ToolCtx {
+        result_cap: None,
         session: SessionId::from(session),
         app: AppId::from("chat"),
         call: CallId::from("cal_0001"),
@@ -151,6 +152,7 @@ fn harness_testkit_free_events() -> Vec<SessionEvent> {
         child: None,
     };
     let result = |id: &str, outcome| ToolResult {
+        meta: None,
         call: CallId::from(id),
         outcome,
         content: vec![],

@@ -40,6 +40,7 @@ fn loop_run() -> (f64, usize, usize) {
         .and_then(|(_, p)| p.preset)
         .expect("chat preset");
     let now_tool = ToolSpec {
+        scope: None,
         name: "now".into(),
         description: "The time.".into(),
         input_schema: Value::object([("type", Value::from("object"))]),
@@ -73,6 +74,7 @@ fn loop_run() -> (f64, usize, usize) {
     };
     for i in 0..TURNS {
         let ctx = RequestContext {
+            folders: Vec::new(),
             date: "2026-11-15".into(),
             time_zone: "America/New_York".into(),
             language: "en".into(),

@@ -27,6 +27,10 @@ const COMMITTED: &[(&str, &str)] = &[
         include_str!("../../../fixtures/client-gone.jsonl"),
     ),
     ("display", include_str!("../../../fixtures/display.jsonl")),
+    (
+        "kits-offer",
+        include_str!("../../../fixtures/kits-offer.jsonl"),
+    ),
 ];
 
 const MANIFEST: &str = include_str!("../../../fixtures/MANIFEST.json");
@@ -162,4 +166,59 @@ fn a_session_start_with_a_picked_model_validates() {
     assert!(schema_check::check(&schema, &line("")).is_ok());
     assert!(schema_check::check(&schema, &line(r#","model":"local:picked""#)).is_ok());
     assert!(schema_check::check(&schema, &line(r#","model":7"#)).is_err());
+}
+
+#[test]
+fn kits_offer_matches_the_offer_table() {
+    let all = [
+        "read_file",
+        "list_folder",
+        "run_command",
+        "web_fetch",
+        "write_file",
+    ];
+    let expected: Vec<Vec<&str>> = vec![
+        vec![],                           // standard, no grant
+        vec!["read_file", "list_folder"], // standard, read on one folder
+        all.to_vec(),                     // standard, every grant: core first
+        all[..4].to_vec(),                // intel: four kit tools
+        all.to_vec(),                     // high
+        vec![],                           // low
+        vec![],                           // no profile
+        vec![],                           // the smallest model
+    ];
+    let f = fixtures::by_name("kits-offer").unwrap();
+    let mut offered: BTreeMap<SessionId, Vec<String>> = BTreeMap::new();
+    let mut order: Vec<SessionId> = Vec::new();
+    for e in &f.events {
+        match &e.event {
+            Event::SessionStart(_) => {
+                order.push(e.session.clone());
+                offered.insert(e.session.clone(), Vec::new());
+            }
+            Event::StepStart(s) => {
+                let names = s.tools.iter().flatten().map(|t| t.name.clone());
+                offered.get_mut(&e.session).unwrap().extend(names);
+            }
+            _ => {}
+        }
+    }
+    let got: Vec<Vec<String>> = order.iter().map(|s| offered[s].clone()).collect();
+    assert_eq!(got, expected);
+}
+
+#[test]
+fn the_kit_fields_validate_and_round_trip() {
+    let schema: serde_json::Value = serde_json::from_str(JSON_SCHEMA).unwrap();
+    let lines = [
+        r#"{"session":"ses_0001","seq":9,"at":1794646800800,"turn":"trn_0001","step":"stp_0001","type":"approval.request","approval":"apv_0001","call":"cal_0001","summary":"write_file {\"path\":\"brief.md\"}","rule":"grant","effects":["modifies_data"],"expires_at":1794647100800,"scope":{"kind":"folder","id":"fld_1","label":"design"},"preview":[{"label":"File","value":"brief.md"}],"reversible":true,"remember":"session"}"#,
+        r#"{"session":"ses_0001","seq":10,"at":1794646804800,"turn":"trn_0001","step":"stp_0001","type":"approval.decision","approval":"apv_0001","decision":"allow","basis":"user","by":{"scope":"shell"},"remember":"session"}"#,
+        r#"{"session":"ses_0001","seq":11,"at":1794646804900,"turn":"trn_0001","step":"stp_0001","type":"tool.result","call":"cal_0001","outcome":"ok","content":[{"type":"text","text":"Saved."}],"meta":{"bytes":120}}"#,
+    ];
+    for line in lines {
+        let json: serde_json::Value = serde_json::from_str(line).unwrap();
+        schema_check::check(&schema, &json).unwrap_or_else(|e| panic!("{line}: {e:?}"));
+        let event: SessionEvent = serde_json::from_str(line).unwrap();
+        assert_eq!(serde_json::to_string(&event).unwrap(), line);
+    }
 }

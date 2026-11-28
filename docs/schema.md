@@ -56,16 +56,16 @@ Ids are opaque strings. Compare them; never parse them.
 | `session.start` | `class`, `app`, `principal {kind, id?}`, `preset {id, version}`, `parent? {session, call}`, `profile?`, `model?` | Always seq 1. `model` is the model the person picked for the session, replacing the preset's; absent, the preset's model. |
 | `session.status` | `status` (`active`, `awaiting_client`, `failed`), `reason?`, `calls?`, `deadline?` | Not in the brief's list; see below. |
 | `forked` | `from`, `at_seq`, `after_turn?`, `reason` (`edit`, `regenerate`, `branch`) | Seq 2 of a fork. History = parent events 1..`at_seq`, then this log. |
-| `system` | `origin` (`preset`, `context`, `notice`), `text`, `context? {date, time_zone, language, location?}`, `memory? [memory_ref]`, `memory_policy?` (`used`, `withheld`, `off`) | `text` is exactly what the model sees. On the context record, `memory` lists the revisions placed in context and `memory_policy` says whether memory was used. |
+| `system` | `origin` (`preset`, `context`, `notice`), `text`, `context? {date, time_zone, language, location?, folders?}`, `memory? [memory_ref]`, `memory_policy?` (`used`, `withheld`, `off`) | `text` is exactly what the model sees. On the context record, `memory` lists the revisions placed in context and `memory_policy` says whether memory was used. |
 | `turn.start` | `cause` (`user`, `continue`, `wake`, `delegate`), `wake? {source, id}` | |
 | `user` | `content` (blocks) | |
 | `step.start` | `purpose` (`reply`, `title`, `summary`), `model`, `params {max_output_tokens, reasoning, options?}`, `memory_policy?` (`used`, `withheld`, `off`), `tools?` | `tools` appears when the tool set differs from the last step that had one. `memory_policy` is the request record's memory policy. |
 | `assistant` | `content`, `stop` (`end`, `tool_use`, `max_tokens`, `cancelled`), `stream`, `usage?`, `continues?` | Tool calls follow as `tool.call`. |
 | `attempt` | `outcome` (`error`, `cancelled`, `refused`), `error?`, `content?`, `usage?`, `retry?`, `will_retry?` | Never model history. |
 | `tool.call` | `call`, `tool`, `kind` (`engine`, `client`, `cell`, `display`), `input`, `input_raw?`, `effects?`, `batch?`, `child?` | |
-| `tool.result` | `call`, `outcome` (`ok`, `error`, `denied`, `timeout`, `cancelled`), `content?`, `error?`, `truncated?`, `duration_ms?`, `display?` (`shown`, `retry`, `fallback`) | Exactly one per call, even if the step fails. `display` is on a display call's result only (`docs/display.md`). |
-| `approval.request` | `approval`, `call?`, `summary`, `rule` (`acts_outward`, `executes_code`, `three_flag`, `autonomy`), `effects?`, `expires_at?` | |
-| `approval.decision` | `approval`, `decision` (`allow`, `deny`), `basis` (`user`, `ambiguous`, `timeout`, `policy`, `cancelled`), `by {scope, app?}`, `answer?`, `reason?` | An ambiguous answer is `deny` with basis `ambiguous`. |
+| `tool.result` | `call`, `outcome` (`ok`, `error`, `denied`, `timeout`, `cancelled`), `content?`, `error?`, `truncated?`, `duration_ms?`, `display?` (`shown`, `retry`, `fallback`), `meta?` | Exactly one per call, even if the step fails. `display` is on a display call's result only (`docs/display.md`). |
+| `approval.request` | `approval`, `call?`, `summary`, `rule` (`acts_outward`, `executes_code`, `three_flag`, `autonomy`, `grant`), `effects?`, `expires_at?`, `scope? {kind, id, label}`, `preview? [{label, value}]`, `reversible?`, `remember?` (`once`, `session`, `always`) | For a kit call, `effects` are the ones the call is judged on and `remember` is the longest answer the person may be offered. |
+| `approval.decision` | `approval`, `decision` (`allow`, `deny`), `basis` (`user`, `ambiguous`, `timeout`, `policy`, `cancelled`), `by {scope, app?}`, `answer?`, `reason?`, `remember?` | An ambiguous answer is `deny` with basis `ambiguous`. |
 | `question` | `question`, `call?`, `prompt`, `options? [{id, label}]`, `multiple?`, `free_text?` | From the ask-user tool. |
 | `answer` | `question`, `selected?`, `text?`, `skipped?`, `by` | |
 | `artifact` | `artifact`, `version` (from 1), `op` (`create`, `update`), `title`, `media_type`, `blob`, `bytes`, `call?` | The body lives in the blob store. |
@@ -184,3 +184,26 @@ Additive, per "Display widgets: spec v1" (`docs/display.md`): the tool kind
 `display`, and the optional `display` on `tool.result`. No new event type.
 Logs without display calls are unchanged line for line; only the header's
 `revision` reads 1.
+
+## Tool kits (within revision 1)
+
+Additive, per the tool-kits frame (`docs/kits.md`), and kept within
+revision 1 so that every existing log stays byte for byte, header included:
+
+- The effect `modifies_data` and the approval rule `grant`.
+- `scope?` on a tool spec (`folder`, `web`, `site`, `skills`): the kind of
+  thing a kit tool acts on. A spec without it is not a kit tool.
+- On `approval.request`: `scope?`, `preview?`, `reversible?`, `remember?`.
+  On `approval.decision`: `remember?`, what the person chose, held to the
+  request's.
+- `meta?` on `tool.result`: structured facts a kit reports beside the
+  content (sizes, exit codes); never model history.
+- `folders?` on the context record: the linked folders' names, when the
+  session offers a folder tool.
+
+Every field is optional and omitted when empty, so a log with no kit calls
+is unchanged byte for byte. A revision-1 reader that predates these fields
+ignores them, since readers check the version only. The revision therefore
+does not say whether a log can carry kit fields; the fields themselves do.
+Scope kinds and remember values are open: a reader keeps a value it does
+not know.

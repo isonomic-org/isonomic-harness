@@ -99,6 +99,7 @@ impl DisplaySpec {
             kind: ToolKind::Display,
             effects: Vec::new(),
             concurrency: Concurrency::Parallel,
+            scope: None,
         }
     }
 }
@@ -151,13 +152,10 @@ pub const SMALLEST_MODEL: &str = "local:smallest";
 /// Whether the session's model is offered display tools on this hardware
 /// profile: yes on `high`, `standard` and `intel` except with
 /// [`SMALLEST_MODEL`]; no on `low`, on a profile this build does not know,
-/// and with no profile.
+/// and with no profile. A thin wrapper over the capability table
+/// ([`offer`](crate::offer::offer)).
 pub fn display_capable(profile: Option<&Profile>, model: &str) -> bool {
-    let fast_enough = matches!(
-        profile,
-        Some(Profile::High | Profile::Standard | Profile::Intel)
-    );
-    fast_enough && model != SMALLEST_MODEL
+    crate::offer::offer(profile, model, true).display_tools > 0
 }
 
 #[cfg(test)]

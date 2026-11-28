@@ -29,6 +29,7 @@ impl Tool for Echo {
             kind: ToolKind::Engine,
             effects: vec![],
             concurrency: Concurrency::Parallel,
+            scope: None,
         }
     }
 
@@ -160,6 +161,7 @@ fn client_calls_wait_time_out_and_resume() {
 #[test]
 fn engine_tools_run() {
     let cx = ToolCtx {
+        result_cap: None,
         session: SessionId::from("s"),
         app: AppId::from("chat"),
         call: CallId::from("c"),

@@ -14,11 +14,13 @@
 //! Tools never panic: bad input is a readable error result.
 
 mod connected;
+pub mod grants;
 mod now;
 pub mod services;
 mod state;
 
 pub use connected::{connected, CallConnection, ListConnections, RESULT_CAP};
+pub use grants::{Grants, MemoryGrants, Standing};
 pub use now::{FixedZone, LocalZone, Now};
 pub use state::{PlanTool, Todo};
 
@@ -50,6 +52,7 @@ pub(crate) fn engine(name: &str, description: &str, input_schema: Value) -> Tool
         kind: ToolKind::Engine,
         effects: Vec::new(),
         concurrency: Concurrency::Serial,
+        scope: None,
     }
 }
 

@@ -13,6 +13,7 @@ use crate::value::Value;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::BTreeMap;
 
+pub use crate::approval::*;
 pub use crate::kinds::*;
 pub use crate::payload::*;
 

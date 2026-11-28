@@ -14,6 +14,7 @@ fn spec(name: &str, effects: &[Effect]) -> ToolSpec {
         kind: ToolKind::Engine,
         effects: effects.to_vec(),
         concurrency: Concurrency::Parallel,
+        scope: None,
     }
 }
 
@@ -186,6 +187,10 @@ fn approvals_book() {
             rule: ApprovalRule::ActsOutward,
             effects: vec![Effect::ActsOutward],
             expires_at: exp,
+            scope: None,
+            preview: Vec::new(),
+            reversible: None,
+            remember: None,
         },
         requested_at: 0,
     };

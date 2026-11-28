@@ -62,6 +62,7 @@ fn session(sizes: &[usize]) -> (Recorder, Ctx) {
         r.result(
             &mut cx,
             ToolResult {
+                meta: None,
                 call: CallId::from(call.as_str()),
                 outcome: ToolOutcome::Ok,
                 content: vec![Block::text(long(*n))],

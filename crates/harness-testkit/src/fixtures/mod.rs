@@ -1,7 +1,7 @@
 // Copyright 2026 Anud Inc.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! The seven recorded session fixtures.
+//! The eight recorded session fixtures.
 //!
 //! | Fixture | Contents |
 //! | --- | --- |
@@ -12,12 +12,14 @@
 //! | long-thread | 10,000 events |
 //! | client-gone | A client tool whose app disconnects: awaiting client, timeout, resume |
 //! | display | Each starter display widget shown, a table retried, a chart that falls back, an unknown widget |
+//! | kits-offer | For each profile, model and set of grants, the exact kit tools offered |
 
 mod approval;
 mod autonomous_run;
 mod chat_basic;
 mod client_gone;
 mod display;
+mod kits_offer;
 mod long_thread;
 mod tool_heavy;
 
@@ -59,6 +61,7 @@ pub fn all() -> Vec<Fixture> {
         long_thread(),
         client_gone(),
         display(),
+        kits_offer(),
     ]
 }
 
@@ -118,6 +121,15 @@ pub fn display() -> Fixture {
         name: "display",
         committed: true,
         events: display::record(),
+    }
+}
+
+/// kits-offer.
+pub fn kits_offer() -> Fixture {
+    Fixture {
+        name: "kits-offer",
+        committed: true,
+        events: kits_offer::record(),
     }
 }
 
@@ -214,6 +226,7 @@ pub(crate) mod build {
     /// A tool result.
     pub fn result(call: &str, outcome: ToolOutcome, content: Vec<Block>) -> ToolResult {
         ToolResult {
+            meta: None,
             call: CallId::from(call),
             outcome,
             content,
