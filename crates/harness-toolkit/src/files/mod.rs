@@ -7,9 +7,13 @@
 //! the real locations; the tools never see one.
 
 pub mod ladder;
+mod memory;
 mod path;
+mod tools;
 
+pub use memory::MemoryFs;
 pub use path::{resolve, Place};
+pub use tools::{files_kit, FilesTool, DEFAULT_CAP, READ_MAX};
 
 use harness_core::future::BoxFuture;
 use harness_core::AppId;
@@ -61,7 +65,7 @@ impl FsError {
 pub type FsResult<T> = Result<T, FsError>;
 
 /// Where the files kit reads and writes. The host gives one per engine;
-/// [`MemoryFs`](crate::files) is the fake. Every method takes a resolved
+/// [`MemoryFs`] is the fake. Every method takes a resolved
 /// [`Place`], so the service checks links and protected names once, at
 /// the boundary, and never follows a link out of the folder.
 pub trait FileSystem: Send + Sync {
