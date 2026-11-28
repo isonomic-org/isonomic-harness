@@ -64,6 +64,9 @@ pub struct Config {
     /// compaction budget is an upper bound; the model's real window may be
     /// smaller.
     pub context_tokens: Option<u64>,
+    /// Whether the session's model calls tools, as the host's model caps
+    /// say. A model that does not is offered no display tools.
+    pub calls_tools: bool,
 }
 
 /// A picked model's name as it is recorded: trimmed, and `None` when blank.
@@ -85,6 +88,7 @@ impl Config {
             max_retries: 2,
             max_tool_output: 65_536,
             context_tokens: None,
+            calls_tools: true,
         };
         cfg.offer_display();
         cfg
@@ -92,16 +96,29 @@ impl Config {
 
     /// Put the preset's display tools after the other tools, as
     /// `display_tools` allows them for this profile and model, in place of
-    /// any offered before. A display name another tool already has is not
-    /// offered twice.
+    /// any offered before, and none when the model does not call tools. A
+    /// display name another tool already has is not offered twice.
     pub fn offer_display(&mut self) {
         self.tools.retain(|t| t.kind != ToolKind::Display);
+        if !self.calls_tools {
+            return;
+        }
         let model = self.preset.model.id.clone();
         for spec in self.preset.display_tools(self.profile.as_ref(), &model) {
             if !self.tools.iter().any(|t| t.name == spec.name) {
                 self.tools.push(spec);
             }
         }
+    }
+
+    /// The config with whether the model calls tools, from the host's
+    /// model caps: one that does not is offered no display tools.
+    pub fn with_tool_calls(mut self, calls_tools: bool) -> Self {
+        if calls_tools != self.calls_tools {
+            self.calls_tools = calls_tools;
+            self.offer_display();
+        }
+        self
     }
 
     /// The config with the model's context size (0 means unknown).

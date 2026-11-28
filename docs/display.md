@@ -70,6 +70,12 @@ The loop offers them only when `display_capable(profile, model)` holds:
 | `low` | no |
 | an unknown profile, or none | no |
 
+The host also offers none when its model caps say the session's model does
+not call tools (`ModelCaps::tools`), so an engine marks its smallest local
+model that way; `local:smallest` is the id the gate knows today. The spec's
+open point 3 expects this to move to a capability flag in the model
+catalog.
+
 `Config::offer_display` recomputes the set when the session starts, when the
 model changes and when the offered tools change. Each widget is a tool of
 kind `display`, with no effects and parallel concurrency. The four schemas

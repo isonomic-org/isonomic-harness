@@ -106,8 +106,9 @@ impl Inner {
         model: Option<&str>,
     ) -> harness_loop::Config {
         let cfg = cfg.with_model(model);
-        let context = self.deps.model.caps(&cfg.preset.model.id).context_tokens;
-        cfg.with_context(context)
+        let caps = self.deps.model.caps(&cfg.preset.model.id);
+        cfg.with_tool_calls(caps.tools)
+            .with_context(caps.context_tokens)
     }
 
     pub(crate) fn loop_config(

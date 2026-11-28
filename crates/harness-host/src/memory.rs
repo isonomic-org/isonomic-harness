@@ -170,6 +170,8 @@ pub struct ScriptedModel {
     replies: Mutex<VecDeque<Vec<Result<ModelEvent, ErrorInfo>>>>,
     /// The context size it reports; 0 stands for the default, 32,768.
     context: AtomicU64,
+    /// Models that do not call tools, by name.
+    no_tools: Mutex<Vec<String>>,
     /// Every request received, in order.
     pub requests: Mutex<Vec<ModelRequest>>,
 }
@@ -183,6 +185,11 @@ impl ScriptedModel {
     /// The context size, in tokens, it reports for every model from now on.
     pub fn set_context(&self, tokens: u64) {
         self.context.store(tokens, SeqCst);
+    }
+
+    /// Report `model` as one that does not call tools from now on.
+    pub fn without_tools(&self, model: &str) {
+        lock(&self.no_tools).push(model.to_owned());
     }
 
     /// Queue a text reply.
@@ -221,11 +228,11 @@ fn done(stop: ModelStop) -> ModelEvent {
 }
 
 impl ModelClient for ScriptedModel {
-    fn caps(&self, _model: &str) -> ModelCaps {
+    fn caps(&self, model: &str) -> ModelCaps {
         ModelCaps {
             prefill: true,
             reasoning: true,
-            tools: true,
+            tools: !lock(&self.no_tools).iter().any(|m| m == model),
             context_tokens: match self.context.load(SeqCst) {
                 0 => 32_768,
                 n => n,
