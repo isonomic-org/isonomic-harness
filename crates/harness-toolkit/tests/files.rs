@@ -192,6 +192,29 @@ fn sessions_with_the_same_call_id_keep_their_own_places() {
 }
 
 #[test]
+fn one_session_never_drops_the_places_another_resolved() {
+    let k = kit();
+    let read = tool(&k, "read_file");
+    let input = args([("path", s("Design/notes.md"))]);
+    let mine = cx_as("s1", "chat", "cal_0001", None);
+    poll(read.access(&input, &mine).unwrap()).unwrap();
+    for n in 0..300 {
+        let other = cx_as("s2", "chat", &format!("c{n}"), None);
+        poll(read.access(&input, &other).unwrap()).unwrap();
+    }
+    let ToolOutput::Done(done) = poll(read.call(&input, &mine)) else {
+        panic!("files tools never ask");
+    };
+    assert!(done.error.is_none(), "{:?}", done.error);
+    // The busy session lost its own oldest.
+    let oldest = cx_as("s2", "chat", "c0", None);
+    let ToolOutput::Done(done) = poll(read.call(&input, &oldest)) else {
+        panic!("files tools never ask");
+    };
+    assert_eq!(done.error.unwrap().code, "tool.unresolved");
+}
+
+#[test]
 fn a_folder_unlinked_or_made_read_only_after_resolving_is_refused_at_run() {
     let k = kit();
     let w = tool(&k, "write_file");
@@ -347,6 +370,50 @@ fn search_edit_and_read_count_lines_the_same_way() {
         edited.contains("Lines 4 to 4 now read:\npin here\n"),
         "{edited}"
     );
+    // A hit late in a long line names the display line it is on, and a
+    // read from that line shows it.
+    let tail = format!("{}tail-mark\nlast\n", "z".repeat(1200));
+    k.fs.put("f1", "late.txt", &tail);
+    let found = call(
+        &k,
+        "search_files",
+        args([
+            ("path", s("Design")),
+            ("query", s("tail-mark")),
+            ("in", s("text")),
+        ]),
+    )
+    .unwrap();
+    assert!(found.starts_with("Design/late.txt:3: "), "{found}");
+    let page = call(
+        &k,
+        "read_file",
+        args([
+            ("path", s("Design/late.txt")),
+            ("from_line", Value::from(3u64)),
+            ("lines", Value::from(1u64)),
+        ]),
+    )
+    .unwrap();
+    assert!(page.contains("tail-mark"), "{page}");
+    // An edit that removes the file's last lines says so.
+    let cut = call(
+        &k,
+        "edit_file",
+        args([
+            ("path", s("Design/late.txt")),
+            ("find", s("last\n")),
+            ("replace", s("")),
+        ]),
+    )
+    .unwrap();
+    assert!(cut.contains("removed from the end"), "{cut}");
+    let none = call(
+        &k,
+        "search_files",
+        args([("path", s("Design/nowhere")), ("query", s("x"))]),
+    );
+    assert!(none.unwrap_err().contains("files.not_found"));
 }
 
 #[test]

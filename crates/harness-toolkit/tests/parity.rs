@@ -9,3 +9,6 @@ mod r1_ladder;
 
 #[path = "parity/R1/file_update.rs"]
 mod r1_file_update;
+
+#[path = "parity/R2/edit.rs"]
+mod r2_edit;

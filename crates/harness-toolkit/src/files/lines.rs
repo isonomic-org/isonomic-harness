@@ -107,6 +107,10 @@ fn cut<'a>(mut rest: &'a str, out: &mut Vec<&'a str>) {
         while !rest.is_char_boundary(at) {
             at -= 1;
         }
+        // Never part a `\r\n`.
+        if rest.as_bytes()[at - 1] == b'\r' && rest.as_bytes().get(at) == Some(&b'\n') {
+            at -= 1;
+        }
         out.push(&rest[..at]);
         rest = &rest[at..];
     }
@@ -150,6 +154,33 @@ pub fn display_starts(content: &str) -> Vec<usize> {
     starts
 }
 
+/// The display lines that hold `needle` (already in lower case), without
+/// case: each one's number (from 1) and its text without the ending. A
+/// match that spans two pieces of a long line is reported on the first.
+pub fn matching_lines(content: &str, needle: &str) -> Vec<(usize, String)> {
+    let mut out = Vec::new();
+    let mut number = 0;
+    let mut pieces = Vec::new();
+    for line in whole_lines(content) {
+        pieces.clear();
+        cut(line, &mut pieces);
+        let first = number + 1;
+        number += pieces.len();
+        let bare = |p: &str| p.trim_end_matches(['\r', '\n']).to_owned();
+        let mut found = false;
+        for (i, piece) in pieces.iter().enumerate() {
+            if piece.to_lowercase().contains(needle) {
+                out.push((first + i, bare(piece)));
+                found = true;
+            }
+        }
+        if !found && pieces.len() > 1 && line.to_lowercase().contains(needle) {
+            out.push((first, bare(pieces[0])));
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -175,5 +206,17 @@ mod tests {
         assert_eq!(starts.len(), 4);
         assert_eq!(d[starts[2] - 1], "two\n");
         assert_eq!(d[starts[3] - 1], "end");
+        // A `\r\n` is never parted, and a hit names the piece it is in.
+        let wide = format!(
+            "{}\r\n{}needle\n",
+            "a".repeat(LONG_LINE - 1),
+            "b".repeat(600)
+        );
+        let d = display_lines(&wide);
+        assert_eq!(d.concat(), wide);
+        assert!(d[0].ends_with('a') && d[1] == "\r\n");
+        let hits = matching_lines(&wide, "needle");
+        assert_eq!(hits.len(), 1);
+        assert_eq!(d[hits[0].0 - 1].trim_end(), hits[0].1);
     }
 }

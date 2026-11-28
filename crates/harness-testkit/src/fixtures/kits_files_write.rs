@@ -4,9 +4,9 @@
 //! kits-files-write: the files kit's four changing tools under ask-first
 //! grants. An edit is approved for the session, and the next change in
 //! that folder runs without asking; a change in another folder asks again;
-//! a change that cannot be undone asks and offers "once" only; a denied
-//! change is not made; and a read-only folder and a find that matches
-//! twice fail as results without asking.
+//! a change that cannot be undone asks and offers "once" only, and the next
+//! one there asks again; a denied change is not made; and a read-only
+//! folder and a find that matches twice fail as results without asking.
 
 use super::build::*;
 use super::kits_files::*;
@@ -70,7 +70,7 @@ fn asked(r: &mut Recorder, s: &mut Ctx, ask: Ask<'_>, decision: Decision, kept: 
 
 fn done(r: &mut Recorder, s: &mut Ctx, id: &str, tool: &str, input: &Value, out: &str) {
     let done = ToolResult {
-        meta: meta(id, tool, input),
+        meta: meta(id, tool, input, true),
         ..result(id, ToolOutcome::Ok, text(out))
     };
     r.result(s, done, 30);
@@ -251,7 +251,12 @@ pub fn record() -> Vec<SessionEvent> {
     close(&mut r, &mut s, "Understood, I left the plan as it was.");
 
     // Turn 4: a change that cannot be undone offers "once" only.
-    open(&mut r, &mut s, "Add the sunset to the shot list.", false);
+    open(
+        &mut r,
+        &mut s,
+        "Add the sunset and the moonrise to the shot list.",
+        false,
+    );
     let shot = Value::object([
         ("path", Value::from("Camera/shots.md")),
         ("text", Value::from("Sunset\n")),
@@ -279,6 +284,37 @@ pub fn record() -> Vec<SessionEvent> {
         &shot,
         "Appended 7 bytes to Camera/shots.md (now 17 bytes).",
     );
-    close(&mut r, &mut s, "Sunset is on the shot list.");
+    // The approval was for that call only: the next change there asks again.
+    let moon = Value::object([
+        ("path", Value::from("Camera/shots.md")),
+        ("text", Value::from("Moonrise\n")),
+        ("append", Value::Bool(true)),
+    ]);
+    asked(
+        &mut r,
+        &mut s,
+        Ask {
+            id: "cal_0012",
+            tool: "write_file",
+            input: moon.clone(),
+            folder: "f4",
+            preview: items([
+                ("Path", "Camera/shots.md"),
+                ("Add to the end", "Moonrise\n"),
+            ]),
+            reversible: false,
+        },
+        Decision::Allow,
+        Some(Remember::Once),
+    );
+    done(
+        &mut r,
+        &mut s,
+        "cal_0012",
+        "write_file",
+        &moon,
+        "Appended 9 bytes to Camera/shots.md (now 26 bytes).",
+    );
+    close(&mut r, &mut s, "Sunset and moonrise are on the shot list.");
     r.finish()
 }

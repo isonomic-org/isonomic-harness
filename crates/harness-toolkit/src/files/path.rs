@@ -29,8 +29,9 @@ pub struct Place {
 
 /// Version-control metadata folders, compared without case.
 const VCS: &[&str] = &[".git", ".hg", ".svn", ".jj"];
-/// The project instruction file, at any depth, compared without case.
-const INSTRUCTIONS: &str = "agents.md";
+/// The project instruction file and its override, at any depth, compared
+/// without case.
+const INSTRUCTIONS: &[&str] = &["agents.md", "agents.override.md"];
 
 /// A name in lower case, all of Unicode: this check sees spellings only.
 /// The engine's service compares what it opened, which also covers other
@@ -59,7 +60,7 @@ impl Place {
     /// Something the kit never changes: version-control metadata or the
     /// project instruction file.
     pub fn protected(&self) -> bool {
-        self.in_vcs() || folded(self.name()) == INSTRUCTIONS
+        self.in_vcs() || INSTRUCTIONS.contains(&folded(self.name()).as_str())
     }
 
     /// The name of the last segment, or the label for the folder itself.
@@ -110,10 +111,16 @@ pub fn resolve(app: &AppId, linked: &[Linked], path: &str) -> Result<Place, FsEr
         }
     }
     let (first, rest) = segments.split_first().ok_or_else(not_linked)?;
-    let exact = linked.iter().find(|l| l.label == *first);
-    let folder = match exact {
-        Some(f) => f,
-        None => {
+    let mut exact = linked.iter().filter(|l| l.label == *first);
+    let folder = match (exact.next(), exact.next()) {
+        (Some(_), Some(_)) => {
+            return Err(FsError::new(
+                code::NOT_LINKED,
+                format!("Two linked folders are named {first}; rename one in Settings."),
+            ))
+        }
+        (Some(f), _) => f,
+        (None, _) => {
             let mut loose = linked
                 .iter()
                 .filter(|l| l.label.eq_ignore_ascii_case(first));
@@ -198,6 +205,19 @@ mod tests {
     }
 
     #[test]
+    fn two_folders_with_one_label_are_refused() {
+        let mut l = linked();
+        l.push(Linked {
+            id: "f3".into(),
+            label: "Design".into(),
+            read_only: true,
+        });
+        let e = resolve(&AppId::from("chat"), &l, "Design/a.md").unwrap_err();
+        assert_eq!(e.code, code::NOT_LINKED);
+        assert!(e.message.contains("Two linked folders"));
+    }
+
+    #[test]
     fn control_characters_are_refused() {
         assert_eq!(err("Design/a\u{0}b"), code::NOT_FOUND);
         assert_eq!(err("Design/a\nb"), code::NOT_FOUND);
@@ -210,6 +230,7 @@ mod tests {
         assert!(at("Design/sub/.JJ/x").protected());
         assert!(at("Design/AGENTS.md").protected());
         assert!(at("Design/sub/agents.MD").protected());
+        assert!(at("Design/AGENTS.override.md").protected());
         assert!(at("Design/Sub/.GIT/x").protected());
         assert!(at("Design/ÄGENTS.md").name() == "ÄGENTS.md");
         assert!(!at("Design/gitignore").protected());

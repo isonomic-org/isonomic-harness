@@ -6,10 +6,10 @@
 //! service runs the same suite over real folders. A service gives the
 //! suite a [`Bench`] to arrange folders with.
 
-use super::{FileSystem, FsResult, MemoryFs, Place};
+use super::{ChangeId, FileSystem, FsResult, MemoryFs, Place};
 use harness_core::future::BoxFuture;
 use harness_core::kits::files_errors as code;
-use harness_core::{AppId, CallId};
+use harness_core::{AppId, CallId, SessionId};
 
 /// What the suite needs beside the service: a way to arrange and inspect
 /// folders from outside the kit.
@@ -65,8 +65,15 @@ fn at(app: &str, folder: &str, label: &str, path: &str) -> Place {
     }
 }
 
-fn call(n: u32) -> CallId {
-    CallId::from(format!("cal_{n:04}").as_str())
+fn call(n: u32) -> ChangeId {
+    call_in("s1", n)
+}
+
+fn call_in(session: &str, n: u32) -> ChangeId {
+    ChangeId {
+        session: SessionId::from(session),
+        call: CallId::from(format!("cal_{n:04}").as_str()),
+    }
 }
 
 fn err<T: std::fmt::Debug>(r: FsResult<T>) -> &'static str {
@@ -98,6 +105,8 @@ pub fn run<B: Bench>(make: impl Fn() -> B) {
     moves_never_replace(&make);
     search_finds_names_and_text(&make);
     every_change_can_be_undone(&make);
+    changes_are_kept_per_session(&make);
+    version_control_is_closed_through_a_link(&make);
 }
 
 fn links_are_per_app_and_checked_at_every_call<B: Bench>(make: &impl Fn() -> B) {
@@ -298,6 +307,35 @@ fn every_change_can_be_undone<B: Bench>(make: &impl Fn() -> B) {
         wait(b.undo(&app, &call(n))).expect("undo");
     }
     assert_eq!(b.snapshot("f1"), before);
+}
+
+/// Call ids restart in every session: two sessions' changes with the same
+/// call id are two changes, and undoing one leaves the other.
+fn changes_are_kept_per_session<B: Bench>(make: &impl Fn() -> B) {
+    let b = arranged(make);
+    let app = AppId::from("chat");
+    let notes = at("chat", "f1", "Design", "notes.md");
+    let home = at("chat", "f1", "Design", "icons/home.svg");
+    wait(b.write(&notes, "first", false, &call_in("s1", 1))).expect("one session");
+    wait(b.write(&home, "second", false, &call_in("s2", 1))).expect("another session");
+    wait(b.undo(&app, &call_in("s2", 1))).expect("undo");
+    assert_eq!(wait(b.read(&notes, 99)).expect("read"), "first");
+    assert_eq!(wait(b.read(&home, 99)).expect("read"), "<svg/>");
+    wait(b.undo(&app, &call_in("s1", 1))).expect("undo");
+    assert_eq!(wait(b.read(&notes, 99)).expect("read"), "one\ntwo\n");
+}
+
+/// A link inside the folder never opens version-control metadata.
+fn version_control_is_closed_through_a_link<B: Bench>(make: &impl Fn() -> B) {
+    let b = arranged(make);
+    b.symlink("f1", "peek", Some(("f1", ".git")));
+    b.symlink("f1", "conf", Some(("f1", ".git/config")));
+    for path in ["peek/config", "conf"] {
+        let place = at("chat", "f1", "Design", path);
+        assert_eq!(err(wait(b.read(&place, 99))), code::PROTECTED, "{path}");
+    }
+    let peek = at("chat", "f1", "Design", "peek");
+    assert_eq!(err(wait(b.list(&peek))), code::PROTECTED);
 }
 
 #[cfg(test)]

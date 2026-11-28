@@ -85,10 +85,11 @@ and its tests, `text_file.rs`, `file_update.rs`, `file_update_tests.rs`,
 `parser.rs`, and `file-search/src/lib.rs` for the ranking order; R2 (Port)
 the developer extension's `edit.rs` and `tree.rs`; R4 (Behaviour) the
 filesystem server's `lib.ts` and `path-validation.ts`; R13 (Behaviour) the
-edit tool. Code is taken from R1 only: the ladder's line steps and
+edit tool. Code is taken from R1 only (entry 20): the ladder's line steps and
 punctuation table (`files/ladder.rs`) and the line-ending model
 (`files/lines.rs`), with R1's tests as parity vectors in
-`crates/harness-toolkit/tests/parity/R1/`. R3, R5, R6 and D1 are the
+`crates/harness-toolkit/tests/parity/R1/`, and R2's edit cases in
+`tests/parity/R2/`. R3, R5, R6 and D1 are the
 engine service's dependencies; the toolkit has the trait, the contract and
 the memory store.
 
@@ -120,16 +121,20 @@ the memory store.
    directories; here the tools never see a real path, and the service
    checks again (the contract's link rows).
 7. **Protected names.** `.git`, `.hg`, `.svn` and `.jj` anywhere in a path
-   are neither read nor changed, and `AGENTS.md` at any depth is never
-   changed (`files.protected`), compared in lower case. Nor is the linked
+   are neither read nor changed, and `AGENTS.md` and `AGENTS.override.md`
+   at any depth are never changed (`files.protected`), compared in lower
+   case. Nor is the linked
    folder itself, nor a folder that holds a protected place (it cannot be
    moved or trashed). The toolkit sees spellings; the design's rule that
    the check "compares what was opened" is the service's, and the contract
-   has the row for a link that leads to a protected place. Other character
-   forms are covered only by the engine's Mac tier.
+   has the rows for a link that leads to a protected place, for a change
+   and for a read of version-control metadata. Other character forms are
+   covered only by the engine's Mac tier.
 8. **An empty `list_dir` path lists the linked folders**, and its access
    names the first linked folder, because an access has one scope. A read
-   grant on any linked folder therefore covers the listing of names.
+   grant on any linked folder therefore covers the listing of names. The
+   folders are listed by label, not in the order they were linked, so
+   `after` continues the same order on every page.
 9. **Name search in the memory store is a simple forgiving match** (the
    query's characters in order, without case; runs and an early start
    score higher; ties by path, R1's order). The engine's service uses D1
@@ -137,22 +142,30 @@ the memory store.
    still finds the name and that the exact name comes first. No D1
    dependency is added to the harness.
 10. **Search returns the first results that fit and a count of the rest**,
-    with no cursor: the tool has four input fields and none is spare. The
-    model narrows the folder or lengthens the query.
+    with no cursor, and tells the model to narrow the folder or lengthen
+    the query. This falls short of the design's rule that every tool says
+    how to get the rest. The design's table gives `search_files` three
+    inputs (`path`, `query`, `in`); a fourth, such as `after`, fits the
+    four-field limit but changes the spec beyond the design. Open, for the
+    owner: add the field, or keep this.
 11. **`list_dir` shows dates as UTC minutes** (`2026-11-28 06:04`). The
     harness has the person's zone only inside the `now` tool; R4 prints the
     full timestamp.
 12. **The places resolved by `access` are kept per session and call**, at
-    most 256, oldest dropped first, and the run uses them; a call that runs
+    most 64 for one session, its own oldest dropped first (4,096 in all),
+    and the run uses them; a call that runs
     without its access check, or with another app's places, is refused
     (`tool.unresolved`). The service still checks every place itself.
 13. **`edit_file` reads, then writes.** A change another session makes to
-    the same file between the two is lost. Open: the engine's service
-    should compare the file with what was read, and refuse on a mismatch;
-    the trait needs an expected-content argument for that.
+    the same file between the two is lost. Open, for the owner, before the
+    engine implements the trait: an expected-content argument on `write`,
+    or an `edit` method on the service (the design's module matrix puts
+    the matcher in the engine's file service, which suggests the second).
 14. **Invariant 9 is tested over generated inputs from a seeded generator,
     not a property-testing crate** (`tests/files_caps.rs`), for the reason
-    in the frame's entry 6: no new dependency. It has no shrinking.
+    in the frame's entry 6: no new dependency. It has no shrinking. The
+    design names D4 for this as a development dependency, so this is the
+    owner's choice: open.
     Invariants 6 and 7 belong to the engine's service; the contract carries
     their rows (links never lead out; changes then undos in reverse leave
     the folder as it began) and the memory store passes them.
@@ -161,7 +174,11 @@ the memory store.
 16. **Fuzz targets, the path escape table with the two published escapes,
     the prefix canary, the crash test and the Mac tier are the engine
     service's** (issue 5). Nothing in the toolkit compares path prefixes or
-    touches a disk.
+    touches a disk. The resolver and the matcher live in this crate, so
+    the engine's fuzz targets drive `files::resolve` and
+    `files::ladder::replace_one`; a timed round on the matcher belongs
+    with them (a test here bounds an edit that matches 960,000
+    places).
 17. **The chat preset uses the files kit** (`[kits] use = ["files"]`,
     version 7). Kit tools are offered only where a grant could cover them,
     so sessions without a linked folder, and every existing fixture, are
@@ -173,3 +190,23 @@ the memory store.
     reversibility on every approval request.
 19. **A file used as a folder in a path gives `files.not_found`**; the
     design has no code for it.
+20. **No code is ported from R2.** Its replacement is an exact match that
+    must be unique, which is the ladder's first step; its listing walks a
+    tree on disk, which is the engine service's. R2's edit cases are
+    parity vectors (`tests/parity/R2/edit.rs`). One differs: R2 fails an
+    edit whose find and replace are the same; here it is a result that
+    says "No change", and nothing is written.
+21. **A change is named by its session and its call** (`ChangeId`), for
+    pre-images and undo, because call ids restart in every session. The
+    result's meta gives the call id; the view knows the session.
+22. **Text search ignores letter case.** The design says a plain text
+    match; R4's search ignores case, and a small model often gets the case
+    of a word wrong. It is still not a pattern language.
+23. **Folder rows in a listing show the name only**, with no size or date:
+    a folder's size is not one number and its date changes with its
+    contents.
+24. **The resolver is forgiving about spelling.** It treats `\` as a
+    separator, trims spaces around the whole path, and matches a folder's
+    label without ASCII case when no label matches exactly. A file whose
+    name holds a backslash, or begins or ends with a space, cannot be
+    named. Two linked folders with one label are refused by name.

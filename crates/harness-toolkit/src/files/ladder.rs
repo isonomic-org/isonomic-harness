@@ -99,13 +99,23 @@ fn occurrences(content: &str, find: &str) -> Vec<usize> {
     out
 }
 
+/// The byte offset each of the file's lines starts at.
+fn line_starts(source: &Source<'_>) -> Vec<usize> {
+    let mut at = 0;
+    source
+        .lines
+        .iter()
+        .map(|l| {
+            let start = at;
+            at += l.text.len() + l.ending.map_or(0, |e| e.as_str().len());
+            start
+        })
+        .collect()
+}
+
 /// The line (from 1) that byte offset `at` falls on.
-fn line_of(content: &str, at: usize) -> usize {
-    let before = Source::parse(&content[..at]);
-    match before.lines.last() {
-        Some(l) if l.ending.is_none() => before.lines.len(),
-        _ => before.lines.len() + 1,
-    }
+fn line_of(starts: &[usize], at: usize) -> usize {
+    starts.partition_point(|&s| s <= at).max(1)
 }
 
 /// Find the one place `find` names in `content` and put `replace` there.
@@ -115,6 +125,8 @@ pub fn replace_one(content: &str, find: &str, replace: &str) -> Found {
     if find.is_empty() {
         return Found::None;
     }
+    let source = Source::parse(content);
+    let offsets = line_starts(&source);
     match occurrences(content, find).as_slice() {
         [at] => {
             let mut text = String::with_capacity(content.len() + replace.len());
@@ -124,14 +136,13 @@ pub fn replace_one(content: &str, find: &str, replace: &str) -> Found {
             return Found::One {
                 text,
                 step: Step::Exact,
-                line: line_of(content, *at),
+                line: line_of(&offsets, *at),
             };
         }
         [] => {}
-        many => return Found::Many(many.iter().map(|&at| line_of(content, at)).collect()),
+        many => return Found::Many(many.iter().map(|&at| line_of(&offsets, at)).collect()),
     }
 
-    let source = Source::parse(content);
     let lines = source.texts();
     let pattern = Source::parse(find).texts();
     let steps: [(Step, Same); 3] = [
@@ -242,6 +253,20 @@ mod tests {
                 line: 2
             }
         );
+    }
+
+    /// A find that matches very many places answers quickly: line numbers
+    /// come from one pass over the file, not one per match.
+    #[test]
+    fn many_matches_in_a_large_file_stay_fast() {
+        let content = "e e e e e e e e\r\n".repeat(120_000);
+        let began = std::time::Instant::now();
+        let Found::Many(lines) = replace_one(&content, "e", "E") else {
+            panic!("many places");
+        };
+        assert_eq!(lines.len(), 960_000);
+        assert_eq!((lines[0], lines[8], lines[959_999]), (1, 2, 120_000));
+        assert!(began.elapsed().as_secs() < 20);
     }
 
     #[test]

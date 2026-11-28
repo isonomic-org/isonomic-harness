@@ -7,7 +7,7 @@
 //! acts. Every result fits the session's cap (invariant 9).
 
 use super::text::clip;
-use super::{resolve, FileSystem, FsError, Place};
+use super::{resolve, ChangeId, FileSystem, FsError, Place};
 use harness_core::access::{Access, PreviewItem, Scope};
 use harness_core::kits::{files_errors as code, kit_spec, KitSpec};
 use harness_core::offer::KitMember;
@@ -22,8 +22,11 @@ pub const DEFAULT_CAP: usize = 8 * 1024;
 pub const MIN_CAP: usize = 1024;
 /// The largest file the tools read whole.
 pub const READ_MAX: usize = 4 * 1024 * 1024;
-/// Resolved calls kept at most; the oldest is dropped first.
-const KEPT: usize = 256;
+/// Resolved calls kept at most for one session; its oldest is dropped
+/// first, so one session never drops another's.
+const KEPT: usize = 64;
+/// Resolved calls kept at most over all sessions.
+const KEPT_IN_ALL: usize = 4096;
 /// The most of a path a header or a listing line shows.
 const SHOWN_PATH: usize = 160;
 
@@ -90,6 +93,12 @@ impl FilesTool {
 
     fn cap(cx: &ToolCtx) -> usize {
         cx.result_cap.unwrap_or(DEFAULT_CAP).max(MIN_CAP)
+    }
+
+    /// Whether a successful result made no change (an edit whose find and
+    /// replace are the same).
+    fn unchanged(done: &ToolDone) -> bool {
+        matches!(done.content.first(), Some(harness_core::Block::Text { text }) if text.starts_with("No change"))
     }
 
     fn kept(&self) -> std::sync::MutexGuard<'_, VecDeque<(Key, Vec<Place>)>> {
@@ -176,8 +185,9 @@ impl FilesTool {
 
     /// Facts for the person's view and the audit, never for the model:
     /// the scope, the backend, the path (and where a move went), and for a
-    /// change that can be undone, the call that holds its pre-image.
-    fn meta(&self, cx: &ToolCtx, places: &[Place]) -> Value {
+    /// change that was made and can be undone, the call that holds its
+    /// pre-image.
+    fn meta(&self, cx: &ToolCtx, places: &[Place], changed: bool) -> Value {
         let at = &places[0];
         let mut facts = vec![
             ("scope", Value::from(at.folder.as_str())),
@@ -187,7 +197,7 @@ impl FilesTool {
         if let Some(to) = places.get(1) {
             facts.push(("to", Value::from(to.logical())));
         }
-        if self.changes() && self.fs.reversible(&at.folder) {
+        if changed && self.changes() && self.fs.reversible(&at.folder) {
             facts.push(("pre_image", Value::from(cx.call.as_str())));
         }
         Value::object(facts)
@@ -196,22 +206,26 @@ impl FilesTool {
     async fn run(&self, input: &Value, cx: &ToolCtx, places: Vec<Place>) -> ToolDone {
         let cap = Self::cap(cx);
         let at = &places[0];
+        let by = ChangeId {
+            session: cx.session.clone(),
+            call: cx.call.clone(),
+        };
         let done = match self.name() {
             "list_dir" => self.list(input, cx, at, cap).await,
             "read_file" => self.read(input, at, cap).await,
             "search_files" => self.search(input, at, cap).await,
-            "write_file" => self.write(input, at, &cx.call).await,
-            "edit_file" => self.edit(input, at, &cx.call, cap).await,
+            "write_file" => self.write(input, at, &by).await,
+            "edit_file" => self.edit(input, at, &by, cap).await,
             "move_path" => {
                 let to = &places[1];
                 self.fs
-                    .rename(at, to, &cx.call)
+                    .rename(at, to, &by)
                     .await
                     .map(|()| format!("Moved to {}.", clip(&to.logical(), SHOWN_PATH)))
             }
             "trash_path" => self
                 .fs
-                .trash(at, &cx.call)
+                .trash(at, &by)
                 .await
                 .map(|()| format!("Moved {} to the Trash.", clip(&at.logical(), SHOWN_PATH))),
             other => Ok(format!("{other} is not a files tool.")),
@@ -261,7 +275,13 @@ impl Tool for FilesTool {
             let key = (cx.session.clone(), cx.call.clone());
             let mut kept = self.kept();
             kept.retain(|(k, _)| *k != key);
-            if kept.len() >= KEPT {
+            let mine = kept.iter().filter(|(k, _)| k.0 == key.0).count();
+            if mine >= KEPT {
+                if let Some(i) = kept.iter().position(|(k, _)| k.0 == key.0) {
+                    kept.remove(i);
+                }
+            }
+            if kept.len() >= KEPT_IN_ALL {
                 kept.pop_front();
             }
             kept.push_back((key, places));
@@ -289,9 +309,10 @@ impl Tool for FilesTool {
                     "The call's places were resolved for another app.",
                 ));
             }
-            let meta = self.meta(cx, &places);
+            let kept = places.clone();
             let mut done = self.run(input, cx, places).await;
-            done.meta = Some(meta);
+            let changed = done.error.is_none() && !Self::unchanged(&done);
+            done.meta = Some(self.meta(cx, &kept, changed));
             ToolOutput::Done(done)
         })
     }

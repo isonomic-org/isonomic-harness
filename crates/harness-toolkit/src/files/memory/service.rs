@@ -3,10 +3,10 @@
 
 //! [`MemoryFs`] as the files service: every call is ready at once.
 
-use super::super::{Entry, FileSystem, FsResult, Hit, Linked, Place};
+use super::super::{ChangeId, Entry, FileSystem, FsResult, Hit, Linked, Place};
 use super::MemoryFs;
 use harness_core::future::{ready, BoxFuture};
-use harness_core::{AppId, CallId};
+use harness_core::AppId;
 
 impl FileSystem for MemoryFs {
     fn linked(&self, app: &AppId) -> Vec<Linked> {
@@ -39,26 +39,26 @@ impl FileSystem for MemoryFs {
         at: &'a Place,
         text: &'a str,
         append: bool,
-        call: &'a CallId,
+        by: &'a ChangeId,
     ) -> BoxFuture<'a, FsResult<()>> {
-        ready(self.write_now(at, text, append, call))
+        ready(self.write_now(at, text, append, by))
     }
 
     fn rename<'a>(
         &'a self,
         from: &'a Place,
         to: &'a Place,
-        call: &'a CallId,
+        by: &'a ChangeId,
     ) -> BoxFuture<'a, FsResult<()>> {
-        ready(self.rename_now(from, to, call))
+        ready(self.rename_now(from, to, by))
     }
 
-    fn trash<'a>(&'a self, at: &'a Place, call: &'a CallId) -> BoxFuture<'a, FsResult<()>> {
-        ready(self.trash_now(at, call))
+    fn trash<'a>(&'a self, at: &'a Place, by: &'a ChangeId) -> BoxFuture<'a, FsResult<()>> {
+        ready(self.trash_now(at, by))
     }
 
-    fn undo<'a>(&'a self, app: &'a AppId, call: &'a CallId) -> BoxFuture<'a, FsResult<()>> {
-        ready(self.undo_now(app, call))
+    fn undo<'a>(&'a self, app: &'a AppId, by: &'a ChangeId) -> BoxFuture<'a, FsResult<()>> {
+        ready(self.undo_now(app, by))
     }
 
     fn reversible(&self, folder: &str) -> bool {

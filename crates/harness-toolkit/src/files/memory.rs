@@ -8,10 +8,10 @@
 //! a Trash; the text check; and pre-images, so every change can be undone.
 //! It passes [`super::contract`].
 
-use super::lines::display_starts;
-use super::{Entry, FsError, FsResult, Hit, Linked, Place};
+use super::lines::matching_lines;
+use super::{ChangeId, Entry, FsError, FsResult, Hit, Linked, Place};
 use harness_core::kits::files_errors as code;
-use harness_core::{AppId, CallId};
+use harness_core::AppId;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Mutex;
 
@@ -32,7 +32,7 @@ type Nodes = BTreeMap<(String, String), Node>;
 /// What a change replaced, for its undo.
 struct PreImage {
     app: AppId,
-    call: CallId,
+    by: ChangeId,
     folder: String,
     nodes: Nodes,
     trash: usize,
@@ -230,7 +230,19 @@ impl MemoryFs {
                 }
             }
             match jumped {
-                None => return Ok(path),
+                None => {
+                    let real = Place {
+                        path: path.clone(),
+                        ..at.clone()
+                    };
+                    if real.in_vcs() {
+                        return Err(FsError::new(
+                            code::PROTECTED,
+                            "Version-control metadata is not read or changed by these tools.",
+                        ));
+                    }
+                    return Ok(path);
+                }
                 Some((len, to)) => path = format!("{to}{}", &path[len..]),
             }
         }
@@ -291,7 +303,7 @@ impl MemoryFs {
         FsError::new(code::NOT_FOUND, format!("Nothing is at {}.", at.logical()))
     }
 
-    fn keep(s: &mut State, at: &Place, call: &CallId) {
+    fn keep(s: &mut State, at: &Place, by: &ChangeId) {
         let nodes = s
             .nodes
             .iter()
@@ -301,7 +313,7 @@ impl MemoryFs {
         let trash = s.trash.len();
         s.undo.push(PreImage {
             app: at.app.clone(),
-            call: call.clone(),
+            by: by.clone(),
             folder: at.folder.clone(),
             nodes,
             trash,
@@ -371,6 +383,9 @@ impl MemoryFs {
     fn search_now(&self, at: &Place, query: &str, text: bool) -> FsResult<Vec<Hit>> {
         let s = self.state();
         let root = Self::locate(&s, at)?;
+        if !matches!(Self::node(&s, &at.folder, &root), Some(Node::Dir)) {
+            return Err(Self::missing(at));
+        }
         let mut ranked: Vec<(u32, Hit)> = Vec::new();
         let needle = query.to_lowercase();
         for ((f, p), n) in &s.nodes {
@@ -385,19 +400,13 @@ impl MemoryFs {
             let shown = shown.trim_start_matches('/').to_owned();
             match (n, text) {
                 (Node::File(body), true) if !body.contains('\0') => {
-                    let starts = display_starts(body);
-                    let src = super::lines::Source::parse(body);
-                    for (i, line) in src.lines.iter().enumerate() {
-                        if line.text.to_lowercase().contains(&needle) {
-                            ranked.push((
-                                0,
-                                Hit {
-                                    path: shown.clone(),
-                                    dir: false,
-                                    line: Some((starts[i], line.text.to_owned())),
-                                },
-                            ));
-                        }
+                    for (number, piece) in matching_lines(body, &needle) {
+                        let hit = Hit {
+                            path: shown.clone(),
+                            dir: false,
+                            line: Some((number, piece)),
+                        };
+                        ranked.push((0, hit));
                     }
                 }
                 (Node::Link(_), _) | (_, true) => {}
@@ -420,7 +429,7 @@ impl MemoryFs {
         Ok(ranked.into_iter().map(|(_, h)| h).collect())
     }
 
-    fn write_now(&self, at: &Place, text: &str, append: bool, call: &CallId) -> FsResult<()> {
+    fn write_now(&self, at: &Place, text: &str, append: bool, by: &ChangeId) -> FsResult<()> {
         let mut s = self.state();
         let path = Self::writable(&s, at)?;
         let key = (at.folder.clone(), path.clone());
@@ -434,13 +443,13 @@ impl MemoryFs {
             (Some(Node::File(old)), true) => format!("{old}{text}"),
             _ => text.to_owned(),
         };
-        Self::keep(&mut s, at, call);
+        Self::keep(&mut s, at, by);
         Self::make_parents(&mut s.nodes, &at.folder, &path);
         s.nodes.insert(key, Node::File(new));
         Ok(())
     }
 
-    fn rename_now(&self, from: &Place, to: &Place, call: &CallId) -> FsResult<()> {
+    fn rename_now(&self, from: &Place, to: &Place, by: &ChangeId) -> FsResult<()> {
         if from.folder != to.folder {
             return Err(FsError::new(
                 code::CROSS_FOLDER,
@@ -465,7 +474,7 @@ impl MemoryFs {
                 "A folder cannot move inside itself.",
             ));
         }
-        Self::keep(&mut s, from, call);
+        Self::keep(&mut s, from, by);
         let moved: Vec<(String, String)> = s
             .nodes
             .keys()
@@ -483,27 +492,23 @@ impl MemoryFs {
         Ok(())
     }
 
-    fn trash_now(&self, at: &Place, call: &CallId) -> FsResult<()> {
+    fn trash_now(&self, at: &Place, by: &ChangeId) -> FsResult<()> {
         let mut s = self.state();
         let path = Self::writable(&s, at)?;
         if Self::node(&s, &at.folder, &path).is_none() {
             return Err(Self::missing(at));
         }
         Self::holds_no_protected(&s, at, &path)?;
-        Self::keep(&mut s, at, call);
+        Self::keep(&mut s, at, by);
         s.nodes
             .retain(|(f, p), _| !(*f == at.folder && under(p, &path)));
         s.trash.push(format!("{}/{}", at.folder, path));
         Ok(())
     }
 
-    fn undo_now(&self, app: &AppId, call: &CallId) -> FsResult<()> {
+    fn undo_now(&self, app: &AppId, by: &ChangeId) -> FsResult<()> {
         let mut s = self.state();
-        let Some(i) = s
-            .undo
-            .iter()
-            .rposition(|u| u.app == *app && u.call == *call)
-        else {
+        let Some(i) = s.undo.iter().rposition(|u| u.app == *app && u.by == *by) else {
             return Ok(());
         };
         let pre = s.undo.remove(i);

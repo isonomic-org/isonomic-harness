@@ -7,10 +7,10 @@
 use super::super::ladder::{replace_one, Found, Step};
 use super::super::lines::{display_lines, display_starts, Source};
 use super::super::text::{clip, date, Out};
-use super::super::{FsError, Place};
+use super::super::{ChangeId, FsError, Place};
 use super::{flag, number, text, FilesTool, READ_MAX, SHOWN_PATH};
 use harness_core::kits::files_errors as code;
-use harness_core::{CallId, Value};
+use harness_core::Value;
 use harness_tools::ToolCtx;
 
 impl FilesTool {
@@ -24,8 +24,10 @@ impl FilesTool {
         let after = text(input, "after");
         let root = text(input, "path").trim().is_empty();
         let rows: Vec<(String, String)> = if root {
-            self.fs
-                .linked(&cx.app)
+            // By label, so that `after` continues a long listing.
+            let mut linked = self.fs.linked(&cx.app);
+            linked.sort_by(|a, b| a.label.cmp(&b.label));
+            linked
                 .into_iter()
                 .map(|l| {
                     let ro = if l.read_only { " (read only)" } else { "" };
@@ -174,12 +176,12 @@ impl FilesTool {
         &self,
         input: &Value,
         at: &Place,
-        call: &CallId,
+        by: &ChangeId,
     ) -> Result<String, FsError> {
         let append = flag(input, "append");
         let body = text(input, "text");
         let before = self.fs.stat(at).await?.map(|e| e.size);
-        self.fs.write(at, body, append, call).await?;
+        self.fs.write(at, body, append, by).await?;
         let path = clip(&at.logical(), SHOWN_PATH);
         let len = body.len();
         Ok(match (before, append) {
@@ -196,7 +198,7 @@ impl FilesTool {
         &self,
         input: &Value,
         at: &Place,
-        call: &CallId,
+        by: &ChangeId,
         cap: usize,
     ) -> Result<String, FsError> {
         let (find, replace) = (text(input, "find"), text(input, "replace"));
@@ -207,7 +209,7 @@ impl FilesTool {
         let content = self.fs.read(at, READ_MAX).await?;
         match replace_one(&content, find, replace) {
             Found::One { text, step, line } => {
-                self.fs.write(at, &text, false, call).await?;
+                self.fs.write(at, &text, false, by).await?;
                 let how = match step {
                     Step::Exact => "the exact text",
                     Step::TrimEnd => "whole lines, ignoring trailing spaces",
@@ -215,7 +217,11 @@ impl FilesTool {
                     Step::Normalised => "whole lines, ignoring spaces and typographic punctuation",
                 };
                 let starts = display_starts(&text);
-                let first = starts.get(line - 1).copied().unwrap_or(1);
+                let Some(first) = starts.get(line - 1).copied() else {
+                    return Ok(format!(
+                        "Edited {path}, matched by {how}. The matched lines were removed from the end."
+                    ));
+                };
                 let new_lines = display_lines(&text);
                 let count = Source::parse(replace).lines.len().max(1);
                 let end = starts

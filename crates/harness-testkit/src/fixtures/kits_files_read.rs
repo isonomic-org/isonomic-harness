@@ -29,7 +29,7 @@ pub fn record() -> Vec<SessionEvent> {
         "cal_0001",
         "list_dir",
         args([("path", "")]),
-        "Linked folders:\nDesign/\nArchive/ (read only)\nDrafts/\nCamera/\n",
+        "Linked folders:\nArchive/ (read only)\nCamera/\nDesign/\nDrafts/\n",
     );
     ok(
         &mut r,

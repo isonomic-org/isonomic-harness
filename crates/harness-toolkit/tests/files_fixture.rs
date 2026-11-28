@@ -92,12 +92,12 @@ fn the_read_fixture_is_what_the_tools_return() {
 #[test]
 fn the_write_fixture_is_what_the_tools_return() {
     let (checked, fs) = replay(kits_files_write());
-    assert_eq!(checked, 10);
+    assert_eq!(checked, 11);
     // The denied write was never made; the allowed ones were.
     assert_eq!(fs.get("f3", "plan.md").as_deref(), Some("Plan\n"));
     assert_eq!(
         fs.get("f4", "shots.md").as_deref(),
-        Some("Shot list\nSunset\n")
+        Some("Shot list\nSunset\nMoonrise\n")
     );
     assert_eq!(
         fs.get("f1", "status.md").as_deref(),

@@ -115,6 +115,37 @@ fn the_kit_is_offered_and_reads_and_edits_a_linked_folder() {
 }
 
 #[test]
+fn a_change_that_cannot_be_undone_asks_despite_a_standing_allow() {
+    let (m, fs, a, s) = setup();
+    // The standing allow covers changes in Design without asking.
+    m.model
+        .calls(&[("write_file", "{\"path\":\"Design/a.md\",\"text\":\"a\"}")]);
+    m.block_on(m.host.send(&a, &s, say("Write."))).unwrap();
+    assert_eq!(results(&m, &s)[0].outcome, ToolOutcome::Ok);
+    // Once the folder's changes cannot be undone, the same allow no longer
+    // covers one: it asks, and offers "once" only.
+    fs.irreversible("f1");
+    m.model
+        .calls(&[("write_file", "{\"path\":\"Design/b.md\",\"text\":\"b\"}")]);
+    m.block_on(m.host.send(&a, &s, say("Write again.")))
+        .unwrap();
+    let asked: Vec<ApprovalRequest> = m
+        .log(&s)
+        .into_iter()
+        .filter_map(|e| match e.event {
+            Event::ApprovalRequest(r) => Some(r),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(asked.len(), 1);
+    assert_eq!(asked[0].rule, ApprovalRule::Grant);
+    assert_eq!(asked[0].scope, Some(design()));
+    assert_eq!(asked[0].reversible, Some(false));
+    assert_eq!(asked[0].remember, Some(Remember::Once));
+    assert_eq!(fs.get("f1", "b.md"), None);
+}
+
+#[test]
 fn no_files_service_registers_no_files_tool() {
     let m = MemoryHost::new();
     assert!(m

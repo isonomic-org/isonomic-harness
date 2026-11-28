@@ -33,3 +33,18 @@ governing permissions and limitations under the License.
 The ported code was translated and changed: each ladder step must match
 exactly one place, lines borrow from the file instead of owning their text,
 and a replacement adds no ending to a file's last line.
+
+## R2: aaif-goose/goose, commit d1438fd
+
+Ported into:
+
+- `crates/harness-toolkit/tests/parity/R2/`: test cases from
+  `crates/goose/src/agents/platform_extensions/developer/edit.rs`. No other
+  code is taken.
+
+Its LICENSE file carries this notice:
+
+    Copyright 2024 Block, Inc.
+
+Licensed under the Apache License, Version 2.0, on the terms given above
+for R1.

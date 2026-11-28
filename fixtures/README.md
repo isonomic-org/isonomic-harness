@@ -12,7 +12,7 @@ file or `MANIFEST.json` differs from the generator.
 | `autonomous-run` | 2 | Two scheduled wakes; compaction that trims two long results and summarizes day 1; a fake delegated child session; a step-budget stop |
 | `long-thread` | 1 | Exactly 10,000 events. Generated, not committed (about 2 MB); its size and digest are in `MANIFEST.json` |
 | `kits-files-read` | 1 | The files kit's read tools under read grants: the linked folders and a folder listed, a file read in two pages, names and text searched, and a path outside the links, a climbing path, a file that is not text and a missing file as results |
-| `kits-files-write` | 1 | The files kit's changing tools under ask-first grants: an edit approved for the session, then four changes in that folder without asking; a read-only folder, an ambiguous find and a move onto a file as results; another folder asks again and is denied; a change that cannot be undone offers once only |
+| `kits-files-write` | 1 | The files kit's changing tools under ask-first grants: an edit approved for the session, then four changes in that folder without asking; a read-only folder, an ambiguous find and a move onto a file as results; another folder asks again and is denied; a change that cannot be undone offers once only, and the next one there asks again |
 | `client-gone` | 1 | A client tool whose app is gone: awaiting client, a 30-second timeout as a readable failure, then active again on reconnect |
 
 Every fixture validates against the JSON Schema, round-trips through the

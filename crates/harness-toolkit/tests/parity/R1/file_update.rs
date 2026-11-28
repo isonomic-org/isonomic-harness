@@ -7,10 +7,10 @@
 //! through the ladder, and an insertion at the end of the file is
 //! `write_file` with append. The starting and resulting contents are R1's.
 
-use harness_core::{AppId, CallId};
+use harness_core::{AppId, CallId, SessionId};
 use harness_toolkit::files::contract::wait;
 use harness_toolkit::files::ladder::{replace_one, Found};
-use harness_toolkit::files::{resolve, FileSystem, MemoryFs};
+use harness_toolkit::files::{resolve, ChangeId, FileSystem, MemoryFs};
 
 /// Apply each (find, replace) in order; every one must match one place.
 fn apply(content: &str, edits: &[(&str, &str)]) -> String {
@@ -57,7 +57,11 @@ fn insert_at_end_of_file() {
     fs.put("f1", "insert.txt", "foo\nbar\nbaz\n");
     let linked = fs.linked(&AppId::from("chat"));
     let at = resolve(&AppId::from("chat"), &linked, "Design/insert.txt").unwrap();
-    wait(fs.write(&at, "quux\n", true, &CallId::from("cal_0001"))).unwrap();
+    let by = ChangeId {
+        session: SessionId::from("s1"),
+        call: CallId::from("cal_0001"),
+    };
+    wait(fs.write(&at, "quux\n", true, &by)).unwrap();
     assert_eq!(
         fs.get("f1", "insert.txt").as_deref(),
         Some("foo\nbar\nbaz\nquux\n")

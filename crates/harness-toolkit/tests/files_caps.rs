@@ -187,6 +187,55 @@ fn listings_fit_the_cap_and_cover_every_entry_once() {
 }
 
 #[test]
+fn the_linked_folders_page_in_one_order_whatever_order_they_were_linked_in() {
+    let mut g = Gen(0x2545_F491_4F6C_DD1D);
+    for case in 0..40 {
+        let fs = Arc::new(MemoryFs::new());
+        let mut labels: Vec<String> = (0..1 + g.below(150)).map(|_| g.name()).collect();
+        labels.sort();
+        labels.dedup();
+        // Link them in an order that is not the labels' order.
+        let mut order: Vec<usize> = (0..labels.len()).collect();
+        for i in (1..order.len()).rev() {
+            order.swap(i, g.below(i as u64 + 1));
+        }
+        for i in order {
+            fs.link("chat", &format!("f{i}"), &labels[i], false);
+        }
+        let tools = files_kit(fs);
+        let cap = g.cap();
+        let mut after = String::new();
+        let mut seen = Vec::new();
+        let mut n = 0;
+        loop {
+            n += 1;
+            let input = Value::object([("path", s("")), ("after", s(&after))]);
+            let page = body(&run(&tools, n, "list_dir", input, cap));
+            seen.extend(
+                page.lines()
+                    .skip(1)
+                    .filter_map(|l| l.strip_suffix('/'))
+                    .map(str::to_owned),
+            );
+            match page.split("Call again with after = ").nth(1) {
+                Some(rest) => {
+                    let next = rest.trim_end().trim_end_matches(" to go on.").to_owned();
+                    assert!(next > after, "case {case}: a page must move on");
+                    after = next;
+                }
+                None => break,
+            }
+        }
+        // A long label is shown cut, so compare what is shown.
+        assert_eq!(seen.len(), labels.len(), "case {case}");
+        for (shown, label) in seen.iter().zip(&labels) {
+            let shown = shown.strip_suffix("...").unwrap_or(shown);
+            assert!(label.starts_with(shown), "case {case}: {shown}");
+        }
+    }
+}
+
+#[test]
 fn every_other_result_fits_the_cap() {
     let mut g = Gen(0x2545_F491_4F6C_DD1D);
     for _ in 0..150 {

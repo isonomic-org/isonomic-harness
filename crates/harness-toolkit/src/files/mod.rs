@@ -20,7 +20,7 @@ pub use text::date;
 pub use tools::{files_kit, FilesTool, DEFAULT_CAP, MIN_CAP, READ_MAX};
 
 use harness_core::future::BoxFuture;
-use harness_core::{AppId, CallId};
+use harness_core::{AppId, CallId, SessionId};
 
 /// A folder the person linked for an app.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -68,6 +68,16 @@ impl FsError {
 /// The result of a service call.
 pub type FsResult<T> = Result<T, FsError>;
 
+/// Which call a change belongs to. Call ids restart in every session, so
+/// a change is named by its session and its call.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ChangeId {
+    /// The session.
+    pub session: SessionId,
+    /// The call in that session.
+    pub call: CallId,
+}
+
 /// One search hit.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Hit {
@@ -75,7 +85,8 @@ pub struct Hit {
     pub path: String,
     /// Whether it is a folder (name search only).
     pub dir: bool,
-    /// For a text hit: the display line (see [`lines`]) and its text.
+    /// For a text hit: the display line (see [`lines`]) that holds the
+    /// match, and that display line's text.
     pub line: Option<(usize, String)>,
 }
 
@@ -110,13 +121,13 @@ pub trait FileSystem: Send + Sync {
     ) -> BoxFuture<'a, FsResult<Vec<Hit>>>;
 
     /// Create or replace a text file, or add to its end, all or nothing.
-    /// Keeps what was there, for `call`'s undo.
+    /// Keeps what was there, for the undo of `by`.
     fn write<'a>(
         &'a self,
         at: &'a Place,
         text: &'a str,
         append: bool,
-        call: &'a CallId,
+        by: &'a ChangeId,
     ) -> BoxFuture<'a, FsResult<()>>;
 
     /// Move inside one folder. Never replaces what is at `to`.
@@ -124,14 +135,14 @@ pub trait FileSystem: Send + Sync {
         &'a self,
         from: &'a Place,
         to: &'a Place,
-        call: &'a CallId,
+        by: &'a ChangeId,
     ) -> BoxFuture<'a, FsResult<()>>;
 
     /// Move to the Trash.
-    fn trash<'a>(&'a self, at: &'a Place, call: &'a CallId) -> BoxFuture<'a, FsResult<()>>;
+    fn trash<'a>(&'a self, at: &'a Place, by: &'a ChangeId) -> BoxFuture<'a, FsResult<()>>;
 
-    /// Undo what `call` changed, if it changed anything.
-    fn undo<'a>(&'a self, app: &'a AppId, call: &'a CallId) -> BoxFuture<'a, FsResult<()>>;
+    /// Undo what `by` changed, if it changed anything.
+    fn undo<'a>(&'a self, app: &'a AppId, by: &'a ChangeId) -> BoxFuture<'a, FsResult<()>>;
 
     /// Whether changes in `folder` can be undone by the engine.
     fn reversible(&self, folder: &str) -> bool;

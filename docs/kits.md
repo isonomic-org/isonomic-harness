@@ -115,7 +115,8 @@ the `files.*` codes in `harness_core::kits::files_errors`.
   shows the changed lines. Line endings are kept.
 - **Result meta** (for the person's view, never the model): `scope` (the
   folder's id), `backend` (`host`), `path`, `to` for a move, and
-  `pre_image` (the call id) for a change that can be undone.
+  `pre_image` (the call id) for a change that was made and can be undone.
+  The service keeps changes by session and call.
 
 Differences from the references are in `docs/kits-deviations.md`.
 

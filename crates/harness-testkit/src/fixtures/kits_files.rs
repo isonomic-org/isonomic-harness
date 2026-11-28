@@ -80,9 +80,9 @@ pub(super) fn items<const N: usize>(pairs: [(&str, &str); N]) -> Vec<PreviewItem
 }
 
 /// The meta a files result carries: the scope, the backend, the path (and
-/// where a move went) and, for a change that can be undone, the call that
-/// holds its pre-image.
-pub(super) fn meta(id: &str, tool: &str, input: &Value) -> Option<Value> {
+/// where a move went) and, for a change that was made (`changed`) and can
+/// be undone, the call that holds its pre-image.
+pub(super) fn meta(id: &str, tool: &str, input: &Value, changed: bool) -> Option<Value> {
     let field = |k: &str| input.get(k).and_then(Value::as_str);
     let path = field("path").or(field("from")).unwrap_or("");
     let label = path.split('/').next().filter(|l| !l.is_empty());
@@ -100,7 +100,7 @@ pub(super) fn meta(id: &str, tool: &str, input: &Value) -> Option<Value> {
         facts.push(("to", Value::from(to)));
     }
     let changes = FILES_SPECS.iter().any(|s| s.name == tool && !s.core);
-    if changes && link.3 {
+    if changed && changes && link.3 {
         facts.push(("pre_image", Value::from(id)));
     }
     Some(Value::object(facts))
@@ -109,7 +109,7 @@ pub(super) fn meta(id: &str, tool: &str, input: &Value) -> Option<Value> {
 /// A call and its successful result.
 pub(super) fn ok(r: &mut Recorder, s: &mut Ctx, id: &str, tool: &str, input: Value, out: &str) {
     let done = ToolResult {
-        meta: meta(id, tool, &input),
+        meta: meta(id, tool, &input, true),
         ..result(id, ToolOutcome::Ok, text(out))
     };
     r.call(s, call(id, &spec(tool), input, None));
@@ -140,7 +140,7 @@ pub(super) fn fails(
         meta: if unresolved {
             None
         } else {
-            meta(id, tool, &input)
+            meta(id, tool, &input, false)
         },
         ..result(id, ToolOutcome::Error, text(message))
     };
