@@ -5,6 +5,12 @@ Entries for the Milestone 0 crates (step 0 through harness-host) are in
 `status-milestone-0.md`; later entries from 15 November and before are in
 `status-2026-11-15.md`.
 
+## 2026-11-28 — A display call is the host's to answer
+
+- **harness-host**: `client_tool_result` for a display call is `NotFound`
+  (an app renders display calls and never answers them; the wire answers
+  `not_found`). Before, it was dropped as a late result. No schema change.
+
 ## 2026-11-28 — Display widgets (revision 1)
 
 The model can show a component inline: `show_table`, `show_steps`,

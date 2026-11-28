@@ -78,7 +78,7 @@ add about 700 tokens to a request.
 ## The loop
 
 A display call skips the guard, policy and approval; it never reaches the
-client. Its `tool.result` carries `display`:
+client, and an app's result for one is refused as `NotFound`. Its `tool.result` carries `display`:
 
 | Input | Result | `display` |
 | --- | --- | --- |

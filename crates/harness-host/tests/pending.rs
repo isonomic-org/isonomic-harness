@@ -388,3 +388,30 @@ fn a_result_for_a_call_never_issued_is_dropped_and_audited() {
     assert_eq!(late.len(), 1);
     assert_eq!((&late[0].session, &late[0].call), (&s, &Some(bogus)));
 }
+
+#[test]
+fn an_app_cannot_answer_a_display_call() {
+    let m = MemoryHost::new();
+    let a = m.caller(&m.app_token("chat", AppKind::FirstParty));
+    let opts = CreateOptions::default();
+    let s = m
+        .block_on(m.host.create_session(&a, &PresetId::from("chat"), opts))
+        .unwrap();
+    let input =
+        r#"{"metrics": [{"label": "Total", "value": "2,340"}], "fallback_text": "Total 2,340."}"#;
+    m.model.calls(&[("show_metrics", input)]);
+    m.model.text("Shown.");
+    m.block_on(m.host.send(&a, &s, text("Show the total.")))
+        .unwrap();
+    let id = m
+        .log(&s)
+        .iter()
+        .find_map(|e| match &e.event {
+            Event::ToolCall(c) if c.kind == ToolKind::Display => Some(c.call.clone()),
+            _ => None,
+        })
+        .expect("a display call");
+    let late = ClientOutcome::Ok(vec![Block::text("Shown.")]);
+    let err = m.block_on(m.host.client_tool_result(&a, &s, &id, late));
+    assert_eq!(err, Err(HostError::NotFound));
+}
