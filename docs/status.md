@@ -5,18 +5,19 @@ Entries for the Milestone 0 crates (step 0 through harness-host) are in
 `status-milestone-0.md`; later entries from 15 November and before are in
 `status-2026-11-15.md`.
 
-## 2026-11-28 — Tool kits: the frame (revision 2)
+## 2026-11-28 — Tool kits: the frame
 
 The shared frame every tool kit runs on, per "Tool kits: architecture
 v0.3" (`docs/kits.md`); no kit ships yet. Deviations are in
 `docs/kits-deviations.md`.
 
-- **harness-core** (schema revision 1 to 2, additive): `modifies_data`,
+- **harness-core** (schema, additive, still revision 1): `modifies_data`,
   rule `grant`; `scope?` on tool specs; `scope?`, `preview?`,
   `reversible?`, `remember?` on `approval.request`; `remember?` on
   `approval.decision`; `meta?` on `tool.result`; `folders?` on the context
   record. `access` and `offer` modules; `display_capable` wraps the offer
-  table. Every existing fixture keeps every event line; only headers move.
+  table. The revision stays 1, so every existing fixture replays byte for
+  byte, header included.
 - **harness-policy**: `Policy::judge` with an optional resolved access and
   grant answer; `evaluate` is `judge` with none, so every existing tool
   gets the verdict it got. `rememberable`.

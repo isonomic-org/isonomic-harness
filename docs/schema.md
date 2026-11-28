@@ -2,7 +2,7 @@
 
 The platform's main contract. Defined in `harness-core` (`SessionEvent`,
 `Event`), with a JSON Schema at `crates/harness-core/schema/session-event.v1.json`
-(also `harness_core::JSON_SCHEMA`). Version 1, revision 2.
+(also `harness_core::JSON_SCHEMA`). Version 1, revision 1.
 
 Status: **published, not yet frozen.** It freezes at the Milestone 0 gate.
 Until then any change is additive where possible and is listed in
@@ -27,7 +27,7 @@ Until then any change is additive where possible and is listed in
 A generation is one UTF-8 file. Line 1 is the header:
 
 ```json
-{"format":"isonomic.session-log","version":1,"revision":2}
+{"format":"isonomic.session-log","version":1,"revision":1}
 ```
 
 Every further line is one event. A file may hold several sessions (a fork,
@@ -185,9 +185,10 @@ Additive, per "Display widgets: spec v1" (`docs/display.md`): the tool kind
 Logs without display calls are unchanged line for line; only the header's
 `revision` reads 1.
 
-## Revision 2: tool kits
+## Tool kits (within revision 1)
 
-Additive, per the tool-kits frame (`docs/kits.md`):
+Additive, per the tool-kits frame (`docs/kits.md`), and kept within
+revision 1 so that every existing log stays byte for byte, header included:
 
 - The effect `modifies_data` and the approval rule `grant`.
 - `scope?` on a tool spec (`folder`, `web`, `site`, `skills`): the kind of
@@ -201,5 +202,8 @@ Additive, per the tool-kits frame (`docs/kits.md`):
   session offers a folder tool.
 
 Every field is optional and omitted when empty, so a log with no kit calls
-is unchanged line for line; only the header's `revision` reads 2. Scope
-kinds and remember values are open: a reader keeps a value it does not know.
+is unchanged byte for byte. A revision-1 reader that predates these fields
+ignores them, since readers check the version only. The revision therefore
+does not say whether a log can carry kit fields; the fields themselves do.
+Scope kinds and remember values are open: a reader keeps a value it does
+not know.

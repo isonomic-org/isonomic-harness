@@ -1,4 +1,4 @@
-{"format":"isonomic.session-log","version":1,"revision":2}
+{"format":"isonomic.session-log","version":1,"revision":1}
 {"session":"ses_0001","seq":1,"at":1794646800000,"type":"session.start","class":"interactive","app":"notes","principal":{"kind":"user"},"preset":{"id":"notes","version":1},"profile":"standard"}
 {"session":"ses_0001","seq":2,"at":1794646800000,"turn":"trn_0001","type":"turn.start","cause":"user"}
 {"session":"ses_0001","seq":3,"at":1794646800000,"turn":"trn_0001","type":"user","content":[{"type":"text","text":"What is in my design folder?"}]}

@@ -134,7 +134,7 @@ pub struct RequestContext {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub location: Option<String>,
     /// The names of the app's linked folders, so the model does not spend a
-    /// call to learn them (revision 2).
+    /// call to learn them (tool kits).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub folders: Vec<String>,
 }
@@ -210,7 +210,7 @@ pub struct ToolSpec {
     pub effects: Vec<Effect>,
     /// How it runs alongside other calls.
     pub concurrency: Concurrency,
-    /// The kind of thing a kit tool touches (revision 2). Absent on every
+    /// The kind of thing a kit tool touches (tool kits). Absent on every
     /// other tool, which then skips resolving.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scope: Option<ScopeKind>,
@@ -310,7 +310,7 @@ pub struct ToolResult {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub display: Option<DisplayOutcome>,
     /// Structured facts for the person's view and the audit: scope,
-    /// backend, exit code, changed path, pre-image id (revision 2). Never
+    /// backend, exit code, changed path, pre-image id (tool kits). Never
     /// part of model history.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub meta: Option<Value>,

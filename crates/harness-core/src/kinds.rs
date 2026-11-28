@@ -173,7 +173,7 @@ open_enum!(
         ActsOutward,
         /// It runs code.
         ExecutesCode,
-        /// It changes the person's data on this device (revision 2).
+        /// It changes the person's data on this device (tool kits).
         ModifiesData,
     }
 );
@@ -242,13 +242,13 @@ open_enum!(
         /// The session's autonomy level requires it.
         Autonomy,
         /// No standing permission covers this call, or it cannot be undone
-        /// (revision 2).
+        /// (tool kits).
         Grant,
     }
 );
 
 open_enum!(
-    /// The kind of thing a kit call touches (revision 2).
+    /// The kind of thing a kit call touches (tool kits).
     ScopeKind {
         /// A linked folder.
         Folder,
@@ -262,7 +262,7 @@ open_enum!(
 );
 
 open_enum!(
-    /// How long an approval's allow is remembered (revision 2).
+    /// How long an approval's allow is remembered (tool kits).
     Remember {
         /// For this call only.
         Once,

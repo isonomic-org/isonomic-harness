@@ -28,17 +28,17 @@ pub struct ApprovalRequest {
     /// When it times out as a denial.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<Millis>,
-    /// What the call touches, for a kit tool (revision 2).
+    /// What the call touches, for a kit tool (tool kits).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scope: Option<Scope>,
-    /// Labelled values the engine worked out, never cut short (revision 2).
+    /// Labelled values the engine worked out, never cut short (tool kits).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub preview: Vec<PreviewItem>,
-    /// Whether the engine can undo it (revision 2).
+    /// Whether the engine can undo it (tool kits).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reversible: Option<bool>,
     /// The longest the person may be offered to remember the answer
-    /// (revision 2). Absent means once.
+    /// (tool kits). Absent means once.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub remember: Option<Remember>,
 }
@@ -61,7 +61,7 @@ pub struct ApprovalDecision {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
     /// How long the person chose to remember an allow, within what the
-    /// request offered (revision 2). Absent means once.
+    /// request offered (tool kits). Absent means once.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub remember: Option<Remember>,
 }

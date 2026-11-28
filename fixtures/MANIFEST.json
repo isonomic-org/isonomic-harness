@@ -5,7 +5,7 @@
       "committed": true,
       "events": 64,
       "file": "chat-basic.jsonl",
-      "fnv1a64": "7aab87bf7b9d629a",
+      "fnv1a64": "f1049515eb3a9b47",
       "name": "chat-basic",
       "sessions": 3
     },
@@ -14,7 +14,7 @@
       "committed": true,
       "events": 37,
       "file": "tool-heavy.jsonl",
-      "fnv1a64": "7123b2130d975504",
+      "fnv1a64": "0a2fb30e3bc44dc7",
       "name": "tool-heavy",
       "sessions": 1
     },
@@ -23,7 +23,7 @@
       "committed": true,
       "events": 63,
       "file": "approval.jsonl",
-      "fnv1a64": "88396501ad4fb8d9",
+      "fnv1a64": "bd50c1776106430e",
       "name": "approval",
       "sessions": 1
     },
@@ -32,7 +32,7 @@
       "committed": true,
       "events": 43,
       "file": "autonomous-run.jsonl",
-      "fnv1a64": "ea1dc974da8d231c",
+      "fnv1a64": "7d2471952d949e15",
       "name": "autonomous-run",
       "sessions": 2
     },
@@ -41,7 +41,7 @@
       "committed": false,
       "events": 10000,
       "file": "long-thread.jsonl",
-      "fnv1a64": "bd38483bb01e16b1",
+      "fnv1a64": "0a0ca26bb826c63e",
       "name": "long-thread",
       "sessions": 1
     },
@@ -50,7 +50,7 @@
       "committed": true,
       "events": 28,
       "file": "client-gone.jsonl",
-      "fnv1a64": "38dc535b7466ad4d",
+      "fnv1a64": "5dd7945be2cb67ca",
       "name": "client-gone",
       "sessions": 1
     },
@@ -59,7 +59,7 @@
       "committed": true,
       "events": 46,
       "file": "display.jsonl",
-      "fnv1a64": "46d0839133862b8a",
+      "fnv1a64": "a68cf9c11a4a66f3",
       "name": "display",
       "sessions": 1
     },
@@ -68,13 +68,13 @@
       "committed": true,
       "events": 64,
       "file": "kits-offer.jsonl",
-      "fnv1a64": "115d963b37df1bfb",
+      "fnv1a64": "df453f512bc6e9cc",
       "name": "kits-offer",
       "sessions": 8
     }
   ],
   "format": "isonomic.session-log",
   "generator": "cargo xtask fixtures",
-  "revision": 2,
+  "revision": 1,
   "version": 1
 }
