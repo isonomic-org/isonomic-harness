@@ -7,13 +7,13 @@
 //! R1's `text_file.rs` at its pinned commit (Apache-2.0; see
 //! THIRD-PARTY-NOTICES.md).
 //!
-//! A line longer than [`LONG_LINE`] bytes is shown as several display
-//! lines. Every number a files tool shows or takes (the read header,
+//! A line whose text is longer than [`LONG_LINE`] bytes is shown as
+//! several display lines. Every number a files tool shows or takes (the read header,
 //! `from_line`, search hits, edit results) counts display lines, which are
 //! the file's own lines unless one is that long. Display lines, endings
 //! included, concatenate to the file exactly.
 
-/// The longest display line, in bytes.
+/// The longest text of a display line, in bytes; its ending is extra.
 pub const LONG_LINE: usize = 512;
 
 /// A line ending.
@@ -99,22 +99,21 @@ impl<'a> Source<'a> {
     }
 }
 
-/// Cut one line, ending included, into display lines of at most
-/// [`LONG_LINE`] bytes, at character boundaries.
-fn cut<'a>(mut rest: &'a str, out: &mut Vec<&'a str>) {
-    while rest.len() > LONG_LINE {
-        let mut at = LONG_LINE;
-        while !rest.is_char_boundary(at) {
+/// Cut one line, ending included, into display lines whose text is at
+/// most [`LONG_LINE`] bytes, at character boundaries. The ending stays on
+/// the last piece, so no display line is an ending alone.
+fn cut<'a>(line: &'a str, out: &mut Vec<&'a str>) {
+    let text_len = line.trim_end_matches(['\r', '\n']).len();
+    let mut from = 0;
+    while text_len - from > LONG_LINE {
+        let mut at = from + LONG_LINE;
+        while !line.is_char_boundary(at) {
             at -= 1;
         }
-        // Never part a `\r\n`.
-        if rest.as_bytes()[at - 1] == b'\r' && rest.as_bytes().get(at) == Some(&b'\n') {
-            at -= 1;
-        }
-        out.push(&rest[..at]);
-        rest = &rest[at..];
+        out.push(&line[from..at]);
+        from = at;
     }
-    out.push(rest);
+    out.push(&line[from..]);
 }
 
 /// Each of the file's lines with its ending, as one slice.
@@ -154,11 +153,51 @@ pub fn display_starts(content: &str) -> Vec<usize> {
     starts
 }
 
+/// The most of a display line a search hit shows.
+pub const SHOWN_HIT: usize = 200;
+
+/// `line` in lower case, with the offset in `line` of each of its bytes.
+fn lowered(line: &str) -> (String, Vec<usize>) {
+    let mut low = String::with_capacity(line.len());
+    let mut from = Vec::with_capacity(line.len());
+    for (at, c) in line.char_indices() {
+        let before = low.len();
+        low.extend(c.to_lowercase());
+        from.resize(from.len() + low.len() - before, at);
+    }
+    (low, from)
+}
+
+/// At most [`SHOWN_HIT`] bytes of `piece` around byte `at`, trimmed, with
+/// `...` where text is left out.
+fn around(piece: &str, at: usize) -> String {
+    let piece = piece.trim_end_matches(['\r', '\n']);
+    if piece.len() <= SHOWN_HIT {
+        return piece.trim().to_owned();
+    }
+    let mut start = at
+        .saturating_sub(SHOWN_HIT / 4)
+        .min(piece.len() - SHOWN_HIT);
+    while !piece.is_char_boundary(start) {
+        start -= 1;
+    }
+    let mut end = start + SHOWN_HIT;
+    while !piece.is_char_boundary(end) {
+        end -= 1;
+    }
+    let head = if start > 0 { "..." } else { "" };
+    let tail = if end < piece.len() { "..." } else { "" };
+    format!("{head}{}{tail}", piece[start..end].trim())
+}
+
 /// The display lines that hold `needle` (already in lower case), without
-/// case: each one's number (from 1) and its text without the ending. A
-/// match that spans two pieces of a long line is reported on the first.
+/// case: each one's number (from 1) and the text around its first match.
+/// A match belongs to the display line it starts on.
 pub fn matching_lines(content: &str, needle: &str) -> Vec<(usize, String)> {
     let mut out = Vec::new();
+    if needle.is_empty() {
+        return out;
+    }
     let mut number = 0;
     let mut pieces = Vec::new();
     for line in whole_lines(content) {
@@ -166,16 +205,20 @@ pub fn matching_lines(content: &str, needle: &str) -> Vec<(usize, String)> {
         cut(line, &mut pieces);
         let first = number + 1;
         number += pieces.len();
-        let bare = |p: &str| p.trim_end_matches(['\r', '\n']).to_owned();
-        let mut found = false;
-        for (i, piece) in pieces.iter().enumerate() {
-            if piece.to_lowercase().contains(needle) {
-                out.push((first + i, bare(piece)));
-                found = true;
+        let (low, from) = lowered(line);
+        let mut piece = 0;
+        let mut start = 0;
+        let mut last = None;
+        for (at, _) in low.match_indices(needle) {
+            let at = from[at];
+            while at >= start + pieces[piece].len() {
+                start += pieces[piece].len();
+                piece += 1;
             }
-        }
-        if !found && pieces.len() > 1 && line.to_lowercase().contains(needle) {
-            out.push((first, bare(pieces[0])));
+            if last != Some(piece) {
+                out.push((first + piece, around(pieces[piece], at - start)));
+                last = Some(piece);
+            }
         }
     }
     out
@@ -201,22 +244,33 @@ mod tests {
         let content = format!("one\r\n{long}\rtwo\nend");
         let d = display_lines(&content);
         assert_eq!(d.concat(), content);
-        assert!(d.iter().all(|l| l.len() <= LONG_LINE));
+        assert!(d.iter().all(|l| l.len() <= LONG_LINE + 2));
         let starts = display_starts(&content);
         assert_eq!(starts.len(), 4);
         assert_eq!(d[starts[2] - 1], "two\n");
         assert_eq!(d[starts[3] - 1], "end");
-        // A `\r\n` is never parted, and a hit names the piece it is in.
-        let wide = format!(
-            "{}\r\n{}needle\n",
-            "a".repeat(LONG_LINE - 1),
-            "b".repeat(600)
-        );
+        // An ending stays with its text, and a hit names the piece it is
+        // in and shows the text around the match.
+        for ending in ["\n", "\r\n", "\r"] {
+            for len in [LONG_LINE - 1, LONG_LINE] {
+                let two = format!("{}{ending}b", "a".repeat(len));
+                assert_eq!(display_lines(&two).len(), 2, "{len} {ending:?}");
+            }
+        }
+        let wide = format!("{}\r\n{}Needle\n", "a".repeat(LONG_LINE), "b".repeat(900));
         let d = display_lines(&wide);
         assert_eq!(d.concat(), wide);
-        assert!(d[0].ends_with('a') && d[1] == "\r\n");
         let hits = matching_lines(&wide, "needle");
         assert_eq!(hits.len(), 1);
-        assert_eq!(d[hits[0].0 - 1].trim_end(), hits[0].1);
+        assert_eq!(hits[0].0, 3);
+        assert!(hits[0].1.starts_with("...") && hits[0].1.ends_with("Needle"));
+        assert!(hits[0].1.len() <= SHOWN_HIT + 6);
+        // A match across a cut belongs to the piece it starts on.
+        let across = format!("{}needle{}\n", "c".repeat(LONG_LINE - 3), "d".repeat(40));
+        let d = display_lines(&across);
+        let hits = matching_lines(&across, "needle");
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].0, 1);
+        assert!(d[0].ends_with("nee") && hits[0].1.ends_with("nee"));
     }
 }

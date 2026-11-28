@@ -96,7 +96,10 @@ the memory store.
 1. **Every ladder step must match exactly one place** (planned by the
    design). R1 returns the first match; here a step that matches more than
    one place stops the ladder with `files.many_matches`. Overlapping exact
-   matches count as separate places.
+   matches count as separate places. R1 tries each start line in turn;
+   here a line step is one pass over the lines' keys with a failure table,
+   so its work grows with the file plus the find, not their product. The
+   comparisons are R1's.
 2. **A ladder replacement ends where the replaced lines ended.** As in R1,
    unchanged lines keep their endings and inserted lines take the file's
    first ending. R1 also gives every line of an updated file an ending;
@@ -104,17 +107,22 @@ the memory store.
    changes one place and nothing else.
 3. **An identical find and replace succeeds with "No change"**, without
    reading the file. R13 refuses it; nothing is wrong with the call.
-4. **Lines longer than 512 bytes are shown as several display lines**, cut
-   at character boundaries, and every line number the tools show or take
-   counts display lines: the read header and `from_line`, search hits and
-   edit results. So a hit's number is the line `read_file` shows, every
-   page fits the smallest cap, and pages concatenate to the file exactly,
-   endings included (invariant 9). R2 and R4 return the whole file or cut
-   it.
+4. **Lines whose text is longer than 512 bytes are shown as several
+   display lines**, cut at character boundaries, the ending staying on the
+   last. Every line number the tools show or take counts display lines:
+   the read header and `from_line`, search hits and edit results. A search
+   hit is numbered on the display line its match starts on, which is the
+   line `read_file` shows, and its row shows at most 200 bytes around the
+   match. Every page fits the smallest cap, and pages concatenate to the
+   file exactly, endings included (invariant 9). R2 and R4 return the
+   whole file or cut it.
 5. **The smallest cap is 1 KiB.** A smaller `result_cap` is raised to it:
    one display line and its header must fit. The offer table's smallest is
    2 KiB. Paths and names in results are clipped to 160 bytes with `...`;
-   the `after` cursor is always a whole name.
+   the `after` cursor is always a whole name. So a listing stops before a
+   name too long for the cap to continue from, and going on fails with
+   `files.too_large`, naming it: at 1 KiB a name of about 900 bytes, and
+   at the offer table's 2 KiB none that a file system allows.
 6. **Paths are logical**: a linked folder's label, then the path inside it.
    Absolute, home, drive and `..` paths and control characters are refused
    before any service call. R4 checks real paths against allowed
@@ -193,12 +201,17 @@ the memory store.
 20. **No code is ported from R2.** Its replacement is an exact match that
     must be unique, which is the ladder's first step; its listing walks a
     tree on disk, which is the engine service's. R2's edit cases are
-    parity vectors (`tests/parity/R2/edit.rs`). One differs: R2 fails an
+    parity vectors (`tests/parity/R2/edit.rs`), and its three write cases
+    run through the service (`write.rs`). One differs: R2 fails an
     edit whose find and replace are the same; here it is a result that
     says "No change", and nothing is written.
 21. **A change is named by its session and its call** (`ChangeId`), for
     pre-images and undo, because call ids restart in every session. The
-    result's meta gives the call id; the view knows the session.
+    result's meta gives the call id; the view knows the session. An undo
+    puts back the places its change touched and nothing else, so another
+    session's change elsewhere in the folder stays (the contract has the
+    row). A later change to the same place is replaced by the undo; the
+    order of undos is the caller's.
 22. **Text search ignores letter case.** The design says a plain text
     match; R4's search ignores case, and a small model often gets the case
     of a word wrong. It is still not a pattern language.
@@ -209,4 +222,13 @@ the memory store.
     separator, trims spaces around the whole path, and matches a folder's
     label without ASCII case when no label matches exactly. A file whose
     name holds a backslash, or begins or ends with a space, cannot be
-    named. Two linked folders with one label are refused by name.
+    named. Two linked folders with one label are refused by name; the
+    listing shows both, and one row can be lost where a page ends between
+    them.
+25. **The kits-files-write fixture shows the last clause of its row in
+    part.** The design's row ends "a change that cannot be undone asks
+    despite the grant". A log does not record grants, and whether a change
+    can be undone is a fact of the folder, so the fixture shows that such
+    a change asks, offers "once" only, and asks again the next time. That
+    it asks under a standing allow is a host test over the real policy
+    (harness-host `tests/files_kit.rs`). For the owner to confirm.

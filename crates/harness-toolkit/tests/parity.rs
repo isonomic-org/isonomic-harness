@@ -12,3 +12,6 @@ mod r1_file_update;
 
 #[path = "parity/R2/edit.rs"]
 mod r2_edit;
+
+#[path = "parity/R2/write.rs"]
+mod r2_write;

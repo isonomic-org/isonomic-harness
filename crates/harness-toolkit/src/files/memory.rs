@@ -16,6 +16,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::sync::Mutex;
 
 mod service;
+mod undo;
 
 /// A node: a file's text, a folder, or a link to a path.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -29,13 +30,20 @@ enum Node {
 
 type Nodes = BTreeMap<(String, String), Node>;
 
-/// What a change replaced, for its undo.
+/// What a change replaced, for its undo: the places it touched as they
+/// were, and nothing else in the folder.
 struct PreImage {
     app: AppId,
     by: ChangeId,
     folder: String,
+    /// The paths the change touched.
+    roots: Vec<String>,
+    /// What was at and under them.
     nodes: Nodes,
-    trash: usize,
+    /// The parent folders the change had to make.
+    made: Vec<String>,
+    /// What it put in the Trash.
+    trash: Option<String>,
 }
 
 #[derive(Default)]
@@ -243,7 +251,10 @@ impl MemoryFs {
                     }
                     return Ok(path);
                 }
-                Some((len, to)) => path = format!("{to}{}", &path[len..]),
+                Some((len, to)) => {
+                    let joined = format!("{to}{}", &path[len..]);
+                    path = joined.trim_start_matches('/').to_owned();
+                }
             }
         }
         Err(outside())
@@ -301,24 +312,6 @@ impl MemoryFs {
 
     fn missing(at: &Place) -> FsError {
         FsError::new(code::NOT_FOUND, format!("Nothing is at {}.", at.logical()))
-    }
-
-    fn keep(s: &mut State, at: &Place, by: &ChangeId) {
-        let nodes = s
-            .nodes
-            .iter()
-            .filter(|((f, _), _)| *f == at.folder)
-            .map(|(k, v)| (k.clone(), v.clone()))
-            .collect();
-        let trash = s.trash.len();
-        s.undo.push(PreImage {
-            app: at.app.clone(),
-            by: by.clone(),
-            folder: at.folder.clone(),
-            nodes,
-            trash,
-        });
-        s.clock += 1;
     }
 
     fn entry(name: &str, n: &Node, clock: i64) -> Entry {
@@ -383,8 +376,15 @@ impl MemoryFs {
     fn search_now(&self, at: &Place, query: &str, text: bool) -> FsResult<Vec<Hit>> {
         let s = self.state();
         let root = Self::locate(&s, at)?;
-        if !matches!(Self::node(&s, &at.folder, &root), Some(Node::Dir)) {
-            return Err(Self::missing(at));
+        match Self::node(&s, &at.folder, &root) {
+            Some(Node::Dir) => {}
+            Some(_) => {
+                return Err(FsError::new(
+                    code::NOT_FOUND,
+                    format!("{} is a file; search a folder.", at.logical()),
+                ))
+            }
+            None => return Err(Self::missing(at)),
         }
         let mut ranked: Vec<(u32, Hit)> = Vec::new();
         let needle = query.to_lowercase();
@@ -443,7 +443,7 @@ impl MemoryFs {
             (Some(Node::File(old)), true) => format!("{old}{text}"),
             _ => text.to_owned(),
         };
-        Self::keep(&mut s, at, by);
+        Self::keep(&mut s, at, by, &[&path], None);
         Self::make_parents(&mut s.nodes, &at.folder, &path);
         s.nodes.insert(key, Node::File(new));
         Ok(())
@@ -474,7 +474,7 @@ impl MemoryFs {
                 "A folder cannot move inside itself.",
             ));
         }
-        Self::keep(&mut s, from, by);
+        Self::keep(&mut s, from, by, &[&src, &dst], None);
         let moved: Vec<(String, String)> = s
             .nodes
             .keys()
@@ -499,23 +499,11 @@ impl MemoryFs {
             return Err(Self::missing(at));
         }
         Self::holds_no_protected(&s, at, &path)?;
-        Self::keep(&mut s, at, by);
+        let name = format!("{}/{}", at.folder, path);
+        Self::keep(&mut s, at, by, &[&path], Some(name.clone()));
         s.nodes
             .retain(|(f, p), _| !(*f == at.folder && under(p, &path)));
-        s.trash.push(format!("{}/{}", at.folder, path));
-        Ok(())
-    }
-
-    fn undo_now(&self, app: &AppId, by: &ChangeId) -> FsResult<()> {
-        let mut s = self.state();
-        let Some(i) = s.undo.iter().rposition(|u| u.app == *app && u.by == *by) else {
-            return Ok(());
-        };
-        let pre = s.undo.remove(i);
-        s.nodes.retain(|(f, _), _| *f != pre.folder);
-        s.nodes.extend(pre.nodes);
-        s.trash.truncate(pre.trash);
-        s.clock += 1;
+        s.trash.push(name);
         Ok(())
     }
 }

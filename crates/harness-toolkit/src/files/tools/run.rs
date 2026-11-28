@@ -65,13 +65,17 @@ impl FilesTool {
         let more = |left: usize, last: &str| {
             format!("{left} more. Call again with after = {last} to go on.\n")
         };
-        // Room for the closing line, which names the last entry shown in
-        // full: `after` continues from exactly that name.
-        let longest = rest.iter().map(|(n, _)| n.len()).max().unwrap_or(0);
-        let room = more(rest.len(), &"x".repeat(longest)).len();
+        // Each row leaves room for the closing line that would name it in
+        // full: `after` continues from exactly the last name shown.
         let mut out = Out::new(cap);
-        out.add(&title, room);
+        out.add(&title, 0);
         for (shown, (name, row)) in rest.iter().enumerate() {
+            let last = shown + 1 == rest.len();
+            let room = if last {
+                0
+            } else {
+                more(rest.len(), name).len()
+            };
             if !out.add(row, room) {
                 if shown == 0 {
                     return Err(FsError::new(
@@ -160,7 +164,7 @@ impl FilesTool {
         for (n, h) in hits.iter().enumerate() {
             let path = clip(&format!("{}/{}", at.label, h.path), SHOWN_PATH);
             let row = match &h.line {
-                Some((line, body)) => format!("{path}:{line}: {}\n", clip(body.trim(), 200)),
+                Some((line, body)) => format!("{path}:{line}: {body}\n"),
                 None if h.dir => format!("{path}/\n"),
                 None => format!("{path}\n"),
             };

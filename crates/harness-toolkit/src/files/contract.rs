@@ -323,6 +323,25 @@ fn changes_are_kept_per_session<B: Bench>(make: &impl Fn() -> B) {
     assert_eq!(wait(b.read(&home, 99)).expect("read"), "<svg/>");
     wait(b.undo(&app, &call_in("s1", 1))).expect("undo");
     assert_eq!(wait(b.read(&notes, 99)).expect("read"), "one\ntwo\n");
+
+    // An undo puts back only what its change touched: undoing the earlier
+    // change leaves a later one elsewhere in the folder, for a write, a
+    // move and a trash alike.
+    let b = arranged(make);
+    let before = b.snapshot("f1");
+    let made = at("chat", "f1", "Design", "new/a.md");
+    let moved = at("chat", "f1", "Design", "moved.md");
+    wait(b.write(&made, "a", false, &call_in("s1", 1))).expect("write");
+    wait(b.rename(&notes, &moved, &call_in("s2", 1))).expect("move");
+    wait(b.undo(&app, &call_in("s1", 1))).expect("undo");
+    assert_eq!(err(wait(b.read(&made, 99))), code::NOT_FOUND);
+    assert_eq!(wait(b.read(&moved, 99)).expect("read"), "one\ntwo\n");
+    wait(b.trash(&home, &call_in("s1", 2))).expect("trash");
+    wait(b.undo(&app, &call_in("s2", 1))).expect("undo");
+    assert_eq!(wait(b.read(&notes, 99)).expect("read"), "one\ntwo\n");
+    assert_eq!(err(wait(b.read(&home, 99))), code::NOT_FOUND);
+    wait(b.undo(&app, &call_in("s1", 2))).expect("undo");
+    assert_eq!(b.snapshot("f1"), before);
 }
 
 /// A link inside the folder never opens version-control metadata.
@@ -336,6 +355,12 @@ fn version_control_is_closed_through_a_link<B: Bench>(make: &impl Fn() -> B) {
     }
     let peek = at("chat", "f1", "Design", "peek");
     assert_eq!(err(wait(b.list(&peek))), code::PROTECTED);
+    // A link to the folder itself leads back in, and no further.
+    b.symlink("f1", "up", Some(("f1", "")));
+    let notes = at("chat", "f1", "Design", "up/notes.md");
+    assert_eq!(wait(b.read(&notes, 99)).expect("read"), "one\ntwo\n");
+    let config = at("chat", "f1", "Design", "up/.git/config");
+    assert_eq!(err(wait(b.read(&config, 99))), code::PROTECTED);
 }
 
 #[cfg(test)]

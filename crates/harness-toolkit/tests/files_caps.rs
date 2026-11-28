@@ -236,6 +236,35 @@ fn the_linked_folders_page_in_one_order_whatever_order_they_were_linked_in() {
 }
 
 #[test]
+fn a_long_name_takes_a_page_of_its_own_or_is_named_as_too_long() {
+    let fs = Arc::new(MemoryFs::new());
+    let long = "M".repeat(700);
+    for (i, label) in ["Alpha", "Beta", long.as_str(), "Zeta"].iter().enumerate() {
+        fs.link("chat", &format!("f{i}"), label, false);
+    }
+    let tools = files_kit(fs.clone());
+    let list = |n: u32, after: &str| {
+        let input = Value::object([("path", s("")), ("after", s(after))]);
+        run(&tools, n, "list_dir", input, MIN_CAP)
+    };
+    // A long label is shown cut, and the page still fits.
+    let all = body(&list(1, ""));
+    assert!(
+        all.contains("Beta/\nMMM") && all.contains(".../\nZeta/\n"),
+        "{all}"
+    );
+    // A name no page can continue from stops the page before it, and is
+    // named in the failure when the model goes on.
+    let huge = "H".repeat(1500);
+    fs.link("chat", "f9", &huge, false);
+    let first = body(&list(2, ""));
+    assert!(first.ends_with("after = Beta to go on.\n"), "{first}");
+    let failed = list(3, "Beta");
+    assert_eq!(failed.error.as_ref().unwrap().code, "files.too_large");
+    assert!(body(&failed).contains("HHHH"), "{}", body(&failed));
+}
+
+#[test]
 fn every_other_result_fits_the_cap() {
     let mut g = Gen(0x2545_F491_4F6C_DD1D);
     for _ in 0..150 {

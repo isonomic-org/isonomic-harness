@@ -131,7 +131,7 @@ Differences from the references are in `docs/kits-deviations.md`.
 - A snapshot of every spec (harness-core `tests/specs.rs`).
 - The files contract, passed by the memory store (harness-toolkit
   `files::contract`); the tools over it (`tests/files.rs`); invariant 9
-  over generated inputs (`tests/files_caps.rs`); R1's parity vectors
-  (`tests/parity/R1/`); the two files fixtures replayed through the tools
+  over generated inputs (`tests/files_caps.rs`); the parity vectors of R1
+  and R2 (`tests/parity/`); the two files fixtures replayed through the tools
   (`tests/files_fixture.rs`); and the kit through the host (harness-host
   `tests/files_kit.rs`).

@@ -67,24 +67,51 @@ fn normalise(s: &str) -> String {
 }
 
 use super::lines::{Line, Source};
+use std::borrow::Cow;
 
-/// How a step compares a file line with a line of `find`.
-type Same = fn(&str, &str) -> bool;
+/// How a step reads a line before it compares: two lines are the same
+/// at a step when their keys are equal.
+type Key = for<'a> fn(&'a str) -> Cow<'a, str>;
 
-/// Every start index where `pattern` matches `lines` under `same`. Like
-/// R1's search, a pattern longer than the input matches nowhere.
-fn starts(lines: &[&str], pattern: &[&str], same: Same) -> Vec<usize> {
+/// Every start index where `pattern` matches `lines`, key for key. Like
+/// R1's search, a pattern longer than the input matches nowhere. R1 tries
+/// each start in turn; this is one pass with a failure table, so the work
+/// grows with the file plus the pattern, not with their product.
+fn starts(lines: &[Cow<'_, str>], pattern: &[Cow<'_, str>]) -> Vec<usize> {
     if pattern.is_empty() || pattern.len() > lines.len() {
         return Vec::new();
     }
-    (0..=lines.len() - pattern.len())
-        .filter(|&i| {
-            pattern
-                .iter()
-                .enumerate()
-                .all(|(p, pat)| same(lines[i + p], pat))
-        })
-        .collect()
+    let mut back = vec![0; pattern.len()];
+    let mut k = 0;
+    for i in 1..pattern.len() {
+        while k > 0 && pattern[i] != pattern[k] {
+            k = back[k - 1];
+        }
+        if pattern[i] == pattern[k] {
+            k += 1;
+        }
+        back[i] = k;
+    }
+    let mut out = Vec::new();
+    let mut k = 0;
+    for (i, line) in lines.iter().enumerate() {
+        while k > 0 && *line != pattern[k] {
+            k = back[k - 1];
+        }
+        if *line == pattern[k] {
+            k += 1;
+        }
+        if k == pattern.len() {
+            out.push(i + 1 - k);
+            k = back[k - 1];
+        }
+    }
+    out
+}
+
+/// Each line's key at a step.
+fn keys<'a>(lines: &[&'a str], key: Key) -> Vec<Cow<'a, str>> {
+    lines.iter().map(|l| key(l)).collect()
 }
 
 /// Every byte offset where `find` occurs, overlapping ones included.
@@ -145,13 +172,13 @@ pub fn replace_one(content: &str, find: &str, replace: &str) -> Found {
 
     let lines = source.texts();
     let pattern = Source::parse(find).texts();
-    let steps: [(Step, Same); 3] = [
-        (Step::TrimEnd, |a, b| a.trim_end() == b.trim_end()),
-        (Step::Trim, |a, b| a.trim() == b.trim()),
-        (Step::Normalised, |a, b| normalise(a) == normalise(b)),
+    let steps: [(Step, Key); 3] = [
+        (Step::TrimEnd, |l| Cow::Borrowed(l.trim_end())),
+        (Step::Trim, |l| Cow::Borrowed(l.trim())),
+        (Step::Normalised, |l| Cow::Owned(normalise(l))),
     ];
-    for (step, same) in steps {
-        match starts(&lines, &pattern, same).as_slice() {
+    for (step, key) in steps {
+        match starts(&keys(&lines, key), &keys(&pattern, key)).as_slice() {
             [] => continue,
             [i] => {
                 return Found::One {
@@ -267,6 +294,25 @@ mod tests {
         assert_eq!(lines.len(), 960_000);
         assert_eq!((lines[0], lines[8], lines[959_999]), (1, 2, 120_000));
         assert!(began.elapsed().as_secs() < 20);
+    }
+
+    #[test]
+    fn line_steps_with_a_long_find_stay_fast() {
+        // Every start matches all of a long find but its last line: trying
+        // each start in turn would cost the file's lines times the find's.
+        let content = " x\n".repeat(400_000);
+        let find = format!("{}y", "x\n".repeat(20_000));
+        let began = std::time::Instant::now();
+        assert_eq!(replace_one(&content, &find, "z"), Found::None);
+        assert!(began.elapsed().as_secs() < 20);
+        // The same search still finds its places.
+        let find = "x\n".repeat(399_999);
+        assert_eq!(replace_one(&content, &find, "z"), Found::Many(vec![1, 2]));
+        let one = format!("{content}  y \n");
+        let Found::One { step, line, .. } = replace_one(&one, "x\ny", "z") else {
+            panic!("one place");
+        };
+        assert_eq!((step, line), (Step::Trim, 400_000));
     }
 
     #[test]
