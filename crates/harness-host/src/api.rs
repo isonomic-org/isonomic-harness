@@ -201,7 +201,8 @@ impl Host {
 
     /// A client tool's result for a call of a session, from the app that
     /// registered the tool. A result for a call that is no longer open is
-    /// dropped and audited.
+    /// dropped and audited. A display call is the host's to answer, so a
+    /// result for one is `NotFound`.
     pub fn client_tool_result(
         &self,
         caller: &Caller,
@@ -213,6 +214,12 @@ impl Host {
         let session = session.clone();
         Box::pin(async move {
             let slot = me.owned(&caller, &session).await?;
+            let display = lock(&slot.lp).events().iter().any(|e| {
+                matches!(&e.event, Event::ToolCall(c) if c.call == call && c.kind == ToolKind::Display)
+            });
+            if display {
+                return Err(HostError::NotFound);
+            }
             {
                 let mut st = lock(&me.state);
                 if !st.client_calls.contains(&(session, call.clone())) {
