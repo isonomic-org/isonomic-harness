@@ -21,11 +21,14 @@
 //!   never reach history.
 
 mod context;
+mod display;
 mod machine;
 mod steps;
 mod stop;
 mod subagent;
 mod tools;
+
+pub use display::{SHOWN, SHOWN_AS_TEXT};
 
 pub use context::{context_text, long_date};
 pub use machine::Session;
@@ -47,7 +50,8 @@ pub struct Config {
     /// The hardware profile.
     pub profile: Option<Profile>,
     /// Tools offered: the preset's engine tools and the owner app's client
-    /// tools, as the host's registry resolved them.
+    /// tools, as the host's registry resolved them, then the preset's
+    /// display tools where the model is capable (`offer_display`).
     pub tools: Vec<ToolSpec>,
     /// Per-turn limits (the preset's, tightened by the app).
     pub limits: Limits,
@@ -73,7 +77,7 @@ impl Config {
     /// A config from a preset with its own limits and the toolkit defaults.
     pub fn new(preset: Preset, profile: Option<Profile>, tools: Vec<ToolSpec>) -> Self {
         let limits = preset.limits;
-        Self {
+        let mut cfg = Self {
             preset,
             profile,
             tools,
@@ -81,6 +85,22 @@ impl Config {
             max_retries: 2,
             max_tool_output: 65_536,
             context_tokens: None,
+        };
+        cfg.offer_display();
+        cfg
+    }
+
+    /// Put the preset's display tools after the other tools, as
+    /// `display_tools` allows them for this profile and model, in place of
+    /// any offered before. A display name another tool already has is not
+    /// offered twice.
+    pub fn offer_display(&mut self) {
+        self.tools.retain(|t| t.kind != ToolKind::Display);
+        let model = self.preset.model.id.clone();
+        for spec in self.preset.display_tools(self.profile.as_ref(), &model) {
+            if !self.tools.iter().any(|t| t.name == spec.name) {
+                self.tools.push(spec);
+            }
         }
     }
 
@@ -118,6 +138,7 @@ impl Config {
     pub fn with_model(mut self, model: Option<&str>) -> Self {
         if let Some(m) = picked_model(model) {
             self.preset.model.id = m;
+            self.offer_display();
         }
         self
     }

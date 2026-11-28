@@ -154,6 +154,9 @@ impl Session {
             let msg = format!("There is no tool named {}.", rec.tool);
             return self.finish(&id, ToolDone::error("tool.unknown", &msg), false);
         };
+        if spec.kind == ToolKind::Display {
+            return self.display_call(&id, &rec);
+        }
         if let Err(g) = guard(&spec, &rec.input, rec.input_raw.as_deref()) {
             return self.finish(&id, ToolDone::error("tool.input", &g.message), false);
         }
@@ -211,6 +214,17 @@ impl Session {
 
     /// Record a call's result (once) and move on when its batch is done.
     fn finish(&mut self, id: &CallId, done: ToolDone, ran: bool) {
+        self.finish_as(id, done, ran, None);
+    }
+
+    /// [`finish`](Self::finish), with a display call's outcome.
+    pub(crate) fn finish_as(
+        &mut self,
+        id: &CallId,
+        done: ToolDone,
+        ran: bool,
+        display: Option<DisplayOutcome>,
+    ) {
         let max = self.cfg.max_tool_output;
         let now = self.now;
         let Some(c) = self.calls_mut() else { return };
@@ -249,6 +263,7 @@ impl Session {
                 error: done.error,
                 truncated: done.truncated,
                 duration_ms: ran.then(|| now.saturating_sub(began)),
+                display,
             }),
         );
         self.batch_done();
@@ -480,6 +495,7 @@ impl Session {
                     error: None,
                     truncated: None,
                     duration_ms: None,
+                    display: None,
                 }),
             );
         }

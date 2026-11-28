@@ -101,6 +101,15 @@ impl ModelSettings {
     }
 }
 
+/// Which display widgets the preset offers (`docs/display.md`).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct DisplaySettings {
+    /// Display tool names, each a known display spec, in order.
+    pub tools: Vec<String>,
+    /// A switch for the whole set: `false` offers none.
+    pub enabled: bool,
+}
+
 /// Which tools the preset offers.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ToolSettings {
@@ -236,6 +245,8 @@ pub struct Preset {
     pub model: ModelSettings,
     /// Tools.
     pub tools: ToolSettings,
+    /// Display widgets.
+    pub display: DisplaySettings,
     /// Budget limits.
     pub limits: Limits,
     /// The policy profile.
@@ -251,6 +262,20 @@ pub struct Preset {
 }
 
 impl Preset {
+    /// The display tools a session offers the model: the preset's
+    /// `[display] tools`, when `enabled` and the model is capable on this
+    /// hardware profile (`harness_core::display::display_capable`); none
+    /// otherwise.
+    pub fn display_tools(&self, profile: Option<&Profile>, model: &str) -> Vec<ToolSpec> {
+        if !self.display.enabled || !display::display_capable(profile, model) {
+            return Vec::new();
+        }
+        let specs = self.display.tools.iter();
+        specs
+            .filter_map(|t| display::display_tool_spec(t))
+            .collect()
+    }
+
     /// Every prompt section, in order, separated by a blank line: the
     /// system prompt of a session that offers tools.
     pub fn system_prompt(&self) -> String {

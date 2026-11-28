@@ -11,6 +11,14 @@ use harness_loop::*;
 
 const TOOLS: &str = "Use a tool only when it helps.";
 
+/// The chat preset without its display tools, which would keep the tools
+/// section in on their own.
+fn chat() -> harness_preset::Preset {
+    let mut p = preset("chat");
+    p.display.enabled = false;
+    p
+}
+
 fn preset_texts(d: &Driver) -> Vec<String> {
     d.own()
         .iter()
@@ -23,7 +31,7 @@ fn preset_texts(d: &Driver) -> Vec<String> {
 
 #[test]
 fn a_chat_session_with_no_tools_gets_the_persona_alone() {
-    let mut d = Driver::with(Config::new(preset("chat"), None, vec![]));
+    let mut d = Driver::with(Config::new(chat(), None, vec![]));
     d.user("What is the capital of France?");
     let system = d.last_request().system.clone();
     assert!(system.starts_with("You are Isonomic"));
@@ -40,7 +48,7 @@ fn a_chat_session_with_no_tools_gets_the_persona_alone() {
 #[test]
 fn the_tools_section_follows_the_tools_offered() {
     let now = spec("now", ToolKind::Engine, &[], Concurrency::Parallel);
-    let mut d = Driver::with(Config::new(preset("chat"), None, vec![now.clone()]));
+    let mut d = Driver::with(Config::new(chat(), None, vec![now.clone()]));
     assert!(preset_texts(&d)[0].contains(TOOLS));
     d.user("Hello.");
     assert!(d.last_request().system.contains(TOOLS));

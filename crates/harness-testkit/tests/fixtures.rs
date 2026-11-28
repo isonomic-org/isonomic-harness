@@ -26,6 +26,7 @@ const COMMITTED: &[(&str, &str)] = &[
         "client-gone",
         include_str!("../../../fixtures/client-gone.jsonl"),
     ),
+    ("display", include_str!("../../../fixtures/display.jsonl")),
 ];
 
 const MANIFEST: &str = include_str!("../../../fixtures/MANIFEST.json");

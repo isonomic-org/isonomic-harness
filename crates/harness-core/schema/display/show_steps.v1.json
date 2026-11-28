@@ -1,0 +1,24 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["steps", "fallback_text"],
+  "properties": {
+    "title": { "type": "string", "maxLength": 80 },
+    "steps": {
+      "type": "array", "minItems": 1, "maxItems": 12,
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["title"],
+        "properties": {
+          "title": { "type": "string", "minLength": 1, "maxLength": 80 },
+          "state": { "type": "string", "enum": ["done", "current", "pending", "failed"] },
+          "detail": { "type": "string", "maxLength": 120 },
+          "substeps": {
+            "type": "array", "maxItems": 6,
+            "items": { "type": "string", "minLength": 1, "maxLength": 80 }
+          }
+        }
+      }
+    },
+    "fallback_text": { "type": "string", "minLength": 1, "maxLength": 4000 }
+  }
+}

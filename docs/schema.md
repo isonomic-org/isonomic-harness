@@ -2,7 +2,7 @@
 
 The platform's main contract. Defined in `harness-core` (`SessionEvent`,
 `Event`), with a JSON Schema at `crates/harness-core/schema/session-event.v1.json`
-(also `harness_core::JSON_SCHEMA`). Version 1, revision 0.
+(also `harness_core::JSON_SCHEMA`). Version 1, revision 1.
 
 Status: **published, not yet frozen.** It freezes at the Milestone 0 gate.
 Until then any change is additive where possible and is listed in
@@ -12,7 +12,7 @@ Until then any change is additive where possible and is listed in
 
 - `SCHEMA_VERSION` (1) changes only with a migration, one version at a time.
   Readers refuse a newer version.
-- `SCHEMA_REVISION` (0) counts additive changes: new event types, new block
+- `SCHEMA_REVISION` (1) counts additive changes: new event types, new block
   types, new optional fields, new enum values. Readers accept any revision
   of their version.
 - **Every consumer must render what it does not know generically:** an
@@ -27,7 +27,7 @@ Until then any change is additive where possible and is listed in
 A generation is one UTF-8 file. Line 1 is the header:
 
 ```json
-{"format":"isonomic.session-log","version":1,"revision":0}
+{"format":"isonomic.session-log","version":1,"revision":1}
 ```
 
 Every further line is one event. A file may hold several sessions (a fork,
@@ -62,8 +62,8 @@ Ids are opaque strings. Compare them; never parse them.
 | `step.start` | `purpose` (`reply`, `title`, `summary`), `model`, `params {max_output_tokens, reasoning, options?}`, `memory_policy?` (`used`, `withheld`, `off`), `tools?` | `tools` appears when the tool set differs from the last step that had one. `memory_policy` is the request record's memory policy. |
 | `assistant` | `content`, `stop` (`end`, `tool_use`, `max_tokens`, `cancelled`), `stream`, `usage?`, `continues?` | Tool calls follow as `tool.call`. |
 | `attempt` | `outcome` (`error`, `cancelled`, `refused`), `error?`, `content?`, `usage?`, `retry?`, `will_retry?` | Never model history. |
-| `tool.call` | `call`, `tool`, `kind` (`engine`, `client`, `cell`), `input`, `input_raw?`, `effects?`, `batch?`, `child?` | |
-| `tool.result` | `call`, `outcome` (`ok`, `error`, `denied`, `timeout`, `cancelled`), `content?`, `error?`, `truncated?`, `duration_ms?` | Exactly one per call, even if the step fails. |
+| `tool.call` | `call`, `tool`, `kind` (`engine`, `client`, `cell`, `display`), `input`, `input_raw?`, `effects?`, `batch?`, `child?` | |
+| `tool.result` | `call`, `outcome` (`ok`, `error`, `denied`, `timeout`, `cancelled`), `content?`, `error?`, `truncated?`, `duration_ms?`, `display?` (`shown`, `retry`, `fallback`) | Exactly one per call, even if the step fails. `display` is on a display call's result only (`docs/display.md`). |
 | `approval.request` | `approval`, `call?`, `summary`, `rule` (`acts_outward`, `executes_code`, `three_flag`, `autonomy`), `effects?`, `expires_at?` | |
 | `approval.decision` | `approval`, `decision` (`allow`, `deny`), `basis` (`user`, `ambiguous`, `timeout`, `policy`, `cancelled`), `by {scope, app?}`, `answer?`, `reason?` | An ambiguous answer is `deny` with basis `ambiguous`. |
 | `question` | `question`, `call?`, `prompt`, `options? [{id, label}]`, `multiple?`, `free_text?` | From the ask-user tool. |
@@ -177,3 +177,10 @@ requests, never model history, and cannot be regenerated. A cancelled reply
 is kept as `assistant` (`stop: cancelled`) plus an `attempt` (`cancelled`)
 recording the cut request. Post-turn steps run after `turn.end`, so a reply
 is finished for the person before its title arrives.
+
+## Revision 1: display widgets
+
+Additive, per "Display widgets: spec v1" (`docs/display.md`): the tool kind
+`display`, and the optional `display` on `tool.result`. No new event type.
+Logs without display calls are unchanged line for line; only the header's
+`revision` reads 1.

@@ -18,6 +18,7 @@ pub struct PresetFile {
     pub prompt: Vec<SectionFile>,
     pub model: ModelFile,
     pub tools: ToolsFile,
+    pub display: DisplayFile,
     pub limits: LimitsFile,
     pub policy: PolicyFile,
     pub context: ContextFile,
@@ -76,6 +77,23 @@ impl Default for ToolsFile {
         Self {
             allow: Vec::new(),
             client: true,
+        }
+    }
+}
+
+/// `[display]`.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields, default)]
+pub struct DisplayFile {
+    pub tools: Vec<String>,
+    pub enabled: bool,
+}
+
+impl Default for DisplayFile {
+    fn default() -> Self {
+        Self {
+            tools: Vec::new(),
+            enabled: true,
         }
     }
 }

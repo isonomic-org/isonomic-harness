@@ -68,6 +68,7 @@ fn session(sizes: &[usize]) -> (Recorder, Ctx) {
                 error: None,
                 truncated: None,
                 duration_ms: None,
+                display: None,
             },
             30,
         );

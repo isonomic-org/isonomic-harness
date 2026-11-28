@@ -40,7 +40,7 @@ fn reference_presets_validate_cleanly() {
         .system_prompt()
         .contains("\n\nUse a tool only when it helps."));
     assert!(!chat.system_prompt().contains('\\'));
-    assert_eq!(chat.reference.version, 5);
+    assert_eq!(chat.reference.version, 6);
     assert_eq!(chat.model.max_output_tokens, 1024);
     assert!(chat.prompt[0].text.trim_end().ends_with(
         "Keep answers short: lead with the answer and use at most a few short \
@@ -221,4 +221,62 @@ fn app_presets_may_only_tighten() {
     open.limits.steps = None;
     assert_eq!(open.check_ceiling(&ceiling)[0].path, "limits.steps");
     assert_eq!(chat.effective_limits(&ceiling.limits).tokens, Some(100_000));
+}
+
+#[test]
+fn the_chat_preset_offers_the_four_starter_widgets_where_capable() {
+    let chat = builtin("chat").unwrap().1.preset.unwrap();
+    let starters = ["show_table", "show_steps", "show_metrics", "show_chart"];
+    assert_eq!(chat.display.tools, starters);
+    assert!(chat.display.enabled);
+    let names = |profile: Option<Profile>, model: &str| -> Vec<String> {
+        let tools = chat.display_tools(profile.as_ref(), model);
+        tools.into_iter().map(|t| t.name).collect()
+    };
+    assert_eq!(names(Some(Profile::Standard), "local:default"), starters);
+    assert_eq!(names(Some(Profile::Intel), "local:default"), starters);
+    assert!(names(Some(Profile::Low), "local:default").is_empty());
+    assert!(names(Some(Profile::Standard), "local:smallest").is_empty());
+    assert!(names(None, "local:default").is_empty());
+    let test = builtin("test").unwrap().1.preset.unwrap();
+    assert!(test.display.tools.is_empty() && test.display.enabled);
+}
+
+#[test]
+fn display_tools_must_be_known_and_few() {
+    let unknown = errors("id = \"x\"\nversion = 1\n[display]\ntools = [\"show_map\"]\n");
+    assert_eq!(
+        unknown,
+        [(
+            "display.tools[0]".to_owned(),
+            "\"show_map\" is not a display widget".to_owned()
+        )]
+    );
+    let five = "id = \"x\"\nversion = 1\n[display]\ntools = [\"show_table\", \"show_steps\", \"show_metrics\", \"show_chart\", \"show_table\"]\n";
+    assert!(errors(five).is_empty(), "five is the most");
+    let parsed = parse(five);
+    let warned: Vec<&str> = parsed
+        .diagnostics
+        .iter()
+        .filter(|d| d.path.starts_with("display"))
+        .map(|d| d.path.as_str())
+        .collect();
+    assert_eq!(warned, ["display.tools[4]"], "a duplicate warns");
+    assert_eq!(parsed.preset.unwrap().display.tools.len(), 4);
+    let six = five.replace("\"show_table\"]", "\"show_table\", \"show_steps\"]");
+    assert_eq!(
+        errors(&six),
+        [(
+            "display.tools".to_owned(),
+            "an interactive preset offers at most 5 display tools".to_owned()
+        )]
+    );
+    let off =
+        parse("id = \"x\"\nversion = 1\n[display]\ntools = [\"show_table\"]\nenabled = false\n");
+    let off = off.preset.unwrap();
+    assert!(off
+        .display_tools(Some(&Profile::High), "local:default")
+        .is_empty());
+    let typo = errors("id = \"x\"\nversion = 1\n[display]\ntool = []\n");
+    assert_eq!(typo.len(), 1, "{typo:?}");
 }

@@ -12,9 +12,12 @@ use harness_core::*;
 use harness_log::{Part, Role};
 use harness_loop::*;
 
-/// The chat preset on a model with an 8,192-token context.
+/// The chat preset on a model with an 8,192-token context, without its
+/// display tools, so each request holds only the turns being measured.
 fn chat(profile: Profile) -> Driver {
-    let cfg = Config::new(preset("chat"), None, vec![]).with_context(8192);
+    let mut p = preset("chat");
+    p.display.enabled = false;
+    let cfg = Config::new(p, None, vec![]).with_context(8192);
     Driver::with_profile(cfg, profile)
 }
 

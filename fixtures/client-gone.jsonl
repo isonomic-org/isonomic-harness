@@ -1,4 +1,4 @@
-{"format":"isonomic.session-log","version":1,"revision":0}
+{"format":"isonomic.session-log","version":1,"revision":1}
 {"session":"ses_0001","seq":1,"at":1794646800000,"type":"session.start","class":"interactive","app":"docs","principal":{"kind":"user"},"preset":{"id":"assistant-panel","version":1},"profile":"standard"}
 {"session":"ses_0001","seq":2,"at":1794646800000,"type":"system","origin":"preset","text":"You help edit the open document. Use the document tools to make changes."}
 {"session":"ses_0001","seq":3,"at":1794646800000,"turn":"trn_0001","type":"turn.start","cause":"user"}
