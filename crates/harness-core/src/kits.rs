@@ -271,7 +271,11 @@ mod tests {
             assert_eq!(t.scope, Some(ScopeKind::Folder));
             assert_eq!(kit_spec(s.name).map(|k| k.name), Some(s.name));
         }
-        let core: Vec<&str> = FILES_SPECS.iter().filter(|s| s.core).map(|s| s.name).collect();
+        let core: Vec<&str> = FILES_SPECS
+            .iter()
+            .filter(|s| s.core)
+            .map(|s| s.name)
+            .collect();
         assert_eq!(core, ["list_dir", "read_file", "search_files"]);
     }
 }
