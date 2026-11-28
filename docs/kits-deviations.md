@@ -70,3 +70,10 @@ gate; the identity specification (in house) for grant answers.
    narrowed effects, which differ from the tool's own only for a confined
    call. No confined backend exists yet; when Cells arrive, the remembered
    act must be the one the grant check used.
+10. **The kit fields stay in revision 1.** The design gives them revision 2,
+    or lets them share revision 1 if they land together with display
+    widgets. Display widgets had already merged as revision 1, and a bump
+    would have changed every existing fixture's header, against the rule
+    that every fixture replays byte for byte. The cost is that a log's
+    header no longer says whether kit fields can appear; readers check the
+    version only and ignore fields they don't know, so nothing breaks.
