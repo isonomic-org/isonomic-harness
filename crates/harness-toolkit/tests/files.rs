@@ -42,10 +42,14 @@ fn kit() -> Kit {
 
 fn cx(k: &Kit, cap: Option<usize>) -> ToolCtx {
     k.next.set(k.next.get() + 1);
+    cx_as("s1", "chat", &format!("c{}", k.next.get()), cap)
+}
+
+fn cx_as(session: &str, app: &str, call: &str, cap: Option<usize>) -> ToolCtx {
     ToolCtx {
-        session: SessionId::from("s1"),
-        app: AppId::from("chat"),
-        call: CallId::from(format!("c{}", k.next.get()).as_str()),
+        session: SessionId::from(session),
+        app: AppId::from(app),
+        call: CallId::from(call),
         now: 0,
         child: None,
         result_cap: cap,
@@ -131,6 +135,16 @@ fn access_names_the_folder_and_previews_whole_values() {
     k.fs.irreversible("f1");
     let a = poll(t.access(&input, &cx(&k, None)).unwrap()).unwrap();
     assert!(!a.reversible);
+    // A write shows the whole text, never a count.
+    let long = "x".repeat(5000);
+    let input = args([("path", s("Design/a.md")), ("text", s(&long))]);
+    let a = poll(
+        tool(&k, "write_file")
+            .access(&input, &cx(&k, None))
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(a.preview[1].value, long);
 }
 
 #[test]
@@ -143,19 +157,81 @@ fn a_call_without_its_access_check_is_refused() {
     );
 }
 
+/// Call ids restart in every session, so the places a call resolved are
+/// kept per session and call: another session's call with the same id
+/// never swaps them.
+#[test]
+fn sessions_with_the_same_call_id_keep_their_own_places() {
+    let k = kit();
+    k.fs.link("other", "f9", "Secret", false);
+    k.fs.put("f9", "a.md", "TOP SECRET");
+    k.fs.put("f1", "a.md", "plain");
+    let t = tool(&k, "read_file");
+    let mine = cx_as("s1", "chat", "cal_0001", None);
+    let theirs = cx_as("s2", "other", "cal_0001", None);
+    let input = args([("path", s("Design/a.md"))]);
+    let secret = args([("path", s("Secret/a.md"))]);
+    poll(t.access(&input, &mine).unwrap()).unwrap();
+    poll(t.access(&secret, &theirs).unwrap()).unwrap();
+    let text = |out: ToolOutput| match out {
+        ToolOutput::Done(d) => format!("{:?}", d.content),
+        ToolOutput::Ask(_) => String::new(),
+    };
+    let got = text(poll(t.call(&input, &mine)));
+    assert!(got.contains("plain") && !got.contains("SECRET"), "{got}");
+    assert!(text(poll(t.call(&secret, &theirs))).contains("TOP SECRET"));
+    // And a write approved for one folder cannot land in the other.
+    let w = tool(&k, "write_file");
+    let input = args([("path", s("Design/a.md")), ("text", s("mine"))]);
+    let other = args([("path", s("Secret/a.md")), ("text", s("theirs"))]);
+    poll(w.access(&input, &mine).unwrap()).unwrap();
+    poll(w.access(&other, &theirs).unwrap()).unwrap();
+    poll(w.call(&input, &mine));
+    assert_eq!(k.fs.get("f9", "a.md").as_deref(), Some("TOP SECRET"));
+    assert_eq!(k.fs.get("f1", "a.md").as_deref(), Some("mine"));
+}
+
+#[test]
+fn a_folder_unlinked_or_made_read_only_after_resolving_is_refused_at_run() {
+    let k = kit();
+    let w = tool(&k, "write_file");
+    let input = args([("path", s("Design/notes.md")), ("text", s("x"))]);
+    let c = cx(&k, None);
+    poll(w.access(&input, &c).unwrap()).unwrap();
+    k.fs.unlink("chat", "f1");
+    let out = poll(w.call(&input, &c));
+    assert!(
+        matches!(out, ToolOutput::Done(d) if d.error.as_ref().unwrap().code == code::NOT_LINKED)
+    );
+    assert_eq!(
+        k.fs.get("f1", "notes.md").as_deref(),
+        Some("one\ntwo\nthree\n")
+    );
+}
+
 #[test]
 fn paths_outside_links_read_only_and_protected_are_refused() {
     let k = kit();
+    k.fs.symlink("f1", "out", None);
     let read = |p: &str| call(&k, "read_file", args([("path", s(p))]));
     assert_eq!(read("/etc/passwd"), Err(code::NOT_LINKED.into()));
     assert_eq!(read("Design/../x"), Err(code::OUTSIDE_FOLDER.into()));
+    assert_eq!(read("Design/out/passwd"), Err(code::OUTSIDE_FOLDER.into()));
     assert_eq!(read("Design/.git/config"), Err(code::PROTECTED.into()));
     assert_eq!(read("Design/nope.md"), Err(code::NOT_FOUND.into()));
     let write = |p: &str| call(&k, "write_file", args([("path", s(p)), ("text", s("x"))]));
     assert_eq!(write("Notes/todo.md"), Err(code::READ_ONLY.into()));
     assert_eq!(write("Design/AGENTS.md"), Err(code::PROTECTED.into()));
+    assert_eq!(write("Design/deep/agents.md"), Err(code::PROTECTED.into()));
     assert_eq!(write("Design"), Err(code::PROTECTED.into()));
+    assert_eq!(write("Design/out/x"), Err(code::OUTSIDE_FOLDER.into()));
     assert_eq!(k.fs.get("f2", "todo.md").as_deref(), Some("milk\n"));
+    let bad = call(
+        &k,
+        "search_files",
+        args([("path", s("Design")), ("query", s("x")), ("in", s("regex"))]),
+    );
+    assert_eq!(bad, Err("tool.input".into()));
 }
 
 #[test]
@@ -167,71 +243,41 @@ fn list_dir_lists_folders_and_pages_with_after() {
         "{top}"
     );
     let d = call(&k, "list_dir", args([("path", s("Design"))])).unwrap();
-    assert!(d.contains("icons/") && d.contains("notes.md  14 bytes") && !d.contains(".git/config"));
-    for i in 0..40 {
+    assert!(
+        d.contains("icons/") && d.contains("notes.md  14 bytes  1970-01-01 00:00"),
+        "{d}"
+    );
+    for i in 0..60 {
         k.fs.put("f1", &format!("many/file-{i:02}.txt"), "x");
     }
-    let first = call_cap(
-        &k,
-        "list_dir",
-        args([("path", s("Design/many"))]),
-        Some(512),
-    )
-    .unwrap();
-    let after = first
-        .lines()
-        .rev()
-        .find(|l| l.contains("after = "))
-        .unwrap();
-    let last = after
-        .rsplit("after = ")
-        .next()
-        .unwrap()
-        .trim_end_matches(" to go on.");
-    let next = call_cap(
-        &k,
-        "list_dir",
-        args([("path", s("Design/many")), ("after", s(last))]),
-        Some(512),
-    )
-    .unwrap();
-    assert!(!next.contains(&format!("{last}  ")) && first.contains(&format!("{last}  ")));
-}
-
-/// Invariant 9: every page fits the cap, and pages cover the content with
-/// no gap and no overlap, long lines included.
-#[test]
-fn read_pages_fit_and_cover_the_text() {
-    let k = kit();
-    let long = "é".repeat(700);
-    let content: String = (1..=120)
-        .map(|i| format!("line {i} {}\n", if i % 17 == 0 { &long } else { "" }))
-        .collect();
-    k.fs.put("f1", "big.txt", &content);
-    let cap = 1024;
-    let mut from = 1;
-    let mut seen = String::new();
+    let mut seen = Vec::new();
+    let mut after = String::new();
     loop {
         let page = call_cap(
             &k,
-            "read_file",
-            args([
-                ("path", s("Design/big.txt")),
-                ("from_line", Value::from(from as u64)),
-            ]),
-            Some(cap),
+            "list_dir",
+            args([("path", s("Design/many")), ("after", s(&after))]),
+            Some(1024),
         )
         .unwrap();
-        assert!(page.len() <= cap, "{} > {cap}", page.len());
-        let (header, body) = page.split_once('\n').unwrap();
-        seen.push_str(body);
-        match header.split("from_line = ").nth(1) {
-            Some(n) => from = n.trim_end_matches('.').parse().unwrap(),
+        assert!(page.len() <= 1024);
+        seen.extend(
+            page.lines()
+                .filter(|l| l.starts_with("file-"))
+                .map(|l| l.split("  ").next().unwrap().to_owned()),
+        );
+        match page.split("after = ").nth(1) {
+            Some(rest) => after = rest.trim_end().trim_end_matches(" to go on.").to_owned(),
             None => break,
         }
     }
-    let joined: String = content.lines().collect();
-    assert_eq!(seen.replace('\n', ""), joined);
+    let want: Vec<String> = (0..60).map(|i| format!("file-{i:02}.txt")).collect();
+    assert_eq!(seen, want);
+}
+
+#[test]
+fn read_shows_a_range_and_says_where_to_go_on() {
+    let k = kit();
     let some = call(
         &k,
         "read_file",
@@ -246,6 +292,61 @@ fn read_pages_fit_and_cover_the_text() {
         some,
         "Design/notes.md, lines 2 to 2 of 3. Go on with from_line = 3.\ntwo\n"
     );
+    let past = call(
+        &k,
+        "read_file",
+        args([
+            ("path", s("Design/notes.md")),
+            ("from_line", Value::from(9u64)),
+        ]),
+    )
+    .unwrap();
+    assert!(past.contains("past the end"));
+}
+
+/// A search hit's line number is the one `read_file` shows, even after a
+/// line long enough to be split.
+#[test]
+fn search_edit_and_read_count_lines_the_same_way() {
+    let k = kit();
+    let long = "y".repeat(1300);
+    k.fs.put("f1", "wide.txt", &format!("{long}\nneedle here\nend\n"));
+    let found = call(
+        &k,
+        "search_files",
+        args([
+            ("path", s("Design")),
+            ("query", s("needle")),
+            ("in", s("text")),
+        ]),
+    )
+    .unwrap();
+    assert_eq!(found, "Design/wide.txt:4: needle here\n");
+    let page = call(
+        &k,
+        "read_file",
+        args([
+            ("path", s("Design/wide.txt")),
+            ("from_line", Value::from(4u64)),
+            ("lines", Value::from(1u64)),
+        ]),
+    )
+    .unwrap();
+    assert!(page.ends_with("\nneedle here\n"), "{page}");
+    let edited = call(
+        &k,
+        "edit_file",
+        args([
+            ("path", s("Design/wide.txt")),
+            ("find", s("needle")),
+            ("replace", s("pin")),
+        ]),
+    )
+    .unwrap();
+    assert!(
+        edited.contains("Lines 4 to 4 now read:\npin here\n"),
+        "{edited}"
+    );
 }
 
 #[test]
@@ -258,6 +359,13 @@ fn search_by_name_and_text_skips_vcs() {
     )
     .unwrap();
     assert_eq!(names, "Design/icons/a.svg\n");
+    let slip = call(
+        &k,
+        "search_files",
+        args([("path", s("Design")), ("query", s("nts"))]),
+    )
+    .unwrap();
+    assert_eq!(slip, "Design/notes.md\n");
     let found = call(
         &k,
         "search_files",
@@ -275,29 +383,34 @@ fn search_by_name_and_text_skips_vcs() {
         ]),
     )
     .unwrap();
-    assert!(vcs.starts_with("Nothing under Design"));
+    assert_eq!(vcs, "Nothing under Design matches.\n");
 }
 
 #[test]
-fn write_and_append() {
+fn write_says_created_replaced_or_appended_with_sizes() {
     let k = kit();
-    call(
-        &k,
-        "write_file",
-        args([("path", s("Design/new/a.md")), ("text", s("hi"))]),
-    )
-    .unwrap();
-    call(
-        &k,
-        "write_file",
-        args([
-            ("path", s("Design/new/a.md")),
-            ("text", s("!")),
-            ("append", Value::Bool(true)),
-        ]),
-    )
-    .unwrap();
+    let write = |text: &str, append: bool| {
+        call(
+            &k,
+            "write_file",
+            args([
+                ("path", s("Design/new/a.md")),
+                ("text", s(text)),
+                ("append", Value::Bool(append)),
+            ]),
+        )
+        .unwrap()
+    };
+    assert_eq!(write("hi", false), "Created Design/new/a.md (2 bytes).");
+    assert_eq!(
+        write("!", true),
+        "Appended 1 bytes to Design/new/a.md (now 3 bytes)."
+    );
     assert_eq!(k.fs.get("f1", "new/a.md").as_deref(), Some("hi!"));
+    assert_eq!(
+        write("bye", false),
+        "Replaced Design/new/a.md (3 bytes, was 3)."
+    );
 }
 
 #[test]
@@ -316,7 +429,7 @@ fn edit_uses_the_ladder_and_needs_one_place() {
     };
     assert_eq!(
         edit("two", "2").unwrap(),
-        "Edited Design/notes.md at line 2."
+        "Edited Design/notes.md, matched by the exact text. Lines 2 to 2 now read:\n2\n"
     );
     assert_eq!(
         k.fs.get("f1", "notes.md").as_deref(),
@@ -329,9 +442,16 @@ fn edit_uses_the_ladder_and_needs_one_place() {
         edit("x\ny", "x\ny").unwrap(),
         "No change: find and replace are the same."
     );
-    k.fs.put("f1", "notes.md", "  a = \u{201C}b\u{201D}  \nc\n");
-    assert!(edit("a = \"b\"", "a = 1").unwrap().contains("typographic"));
-    assert_eq!(k.fs.get("f1", "notes.md").as_deref(), Some("a = 1\nc\n"));
+    k.fs.put("f1", "notes.md", "  a = \u{201C}b\u{201D}  \r\nc\r\n");
+    let fuzzy = edit("a = \"b\"", "a = 1\nb = 2").unwrap();
+    assert!(
+        fuzzy.contains("typographic") && fuzzy.contains("Lines 1 to 2"),
+        "{fuzzy}"
+    );
+    assert_eq!(
+        k.fs.get("f1", "notes.md").as_deref(),
+        Some("a = 1\r\nb = 2\r\nc\r\n")
+    );
 }
 
 #[test]
@@ -340,7 +460,7 @@ fn move_never_replaces_and_stays_in_one_folder() {
     let mv = |a: &str, b: &str| call(&k, "move_path", args([("from", s(a)), ("to", s(b))]));
     assert_eq!(
         mv("Design/icons", "Design/art/icons").unwrap(),
-        "Moved Design/icons to Design/art/icons."
+        "Moved to Design/art/icons."
     );
     assert_eq!(k.fs.get("f1", "art/icons/a.svg").as_deref(), Some("<svg/>"));
     assert_eq!(
@@ -360,7 +480,10 @@ fn move_never_replaces_and_stays_in_one_folder() {
 #[test]
 fn trash_keeps_what_it_removes() {
     let k = kit();
-    call(&k, "trash_path", args([("path", s("Design/icons"))])).unwrap();
+    assert_eq!(
+        call(&k, "trash_path", args([("path", s("Design/icons"))])).unwrap(),
+        "Moved Design/icons to the Trash."
+    );
     assert_eq!(k.fs.get("f1", "icons/a.svg"), None);
     assert_eq!(k.fs.trashed(), ["f1/icons"]);
     assert_eq!(

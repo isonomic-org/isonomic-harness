@@ -6,17 +6,21 @@
 //! label, then a path inside it, like `Design/notes.md`. The service owns
 //! the real locations; the tools never see one.
 
+pub mod contract;
 pub mod ladder;
+pub mod lines;
 mod memory;
 mod path;
+mod text;
 mod tools;
 
 pub use memory::MemoryFs;
 pub use path::{resolve, Place};
-pub use tools::{files_kit, FilesTool, DEFAULT_CAP, READ_MAX};
+pub use text::date;
+pub use tools::{files_kit, FilesTool, DEFAULT_CAP, MIN_CAP, READ_MAX};
 
 use harness_core::future::BoxFuture;
-use harness_core::AppId;
+use harness_core::{AppId, CallId};
 
 /// A folder the person linked for an app.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -64,10 +68,23 @@ impl FsError {
 /// The result of a service call.
 pub type FsResult<T> = Result<T, FsError>;
 
+/// One search hit.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Hit {
+    /// The path inside the linked folder.
+    pub path: String,
+    /// Whether it is a folder (name search only).
+    pub dir: bool,
+    /// For a text hit: the display line (see [`lines`]) and its text.
+    pub line: Option<(usize, String)>,
+}
+
 /// Where the files kit reads and writes. The host gives one per engine;
-/// [`MemoryFs`] is the fake. Every method takes a resolved
-/// [`Place`], so the service checks links and protected names once, at
-/// the boundary, and never follows a link out of the folder.
+/// [`MemoryFs`] is the fake, and [`contract`] is the suite every
+/// implementation passes. Every method takes a resolved [`Place`], and the
+/// service checks it again when it acts: the folder is still linked for
+/// `place.app`, still writable for a change, and nothing on the way leads
+/// out of the folder. Changes are tied to their call so they can be undone.
 pub trait FileSystem: Send + Sync {
     /// The folders linked for `app`, in the person's order.
     fn linked(&self, app: &AppId) -> Vec<Linked>;
@@ -81,20 +98,40 @@ pub trait FileSystem: Send + Sync {
     /// A text file's whole content, refused over `max` bytes.
     fn read<'a>(&'a self, at: &'a Place, max: usize) -> BoxFuture<'a, FsResult<String>>;
 
-    /// Create or replace a text file, or add to its end. Keeps what was
-    /// there so the write can be undone.
+    /// Find under a folder, skipping version-control metadata: names by a
+    /// forgiving match, best first then by path; or lines holding `query`
+    /// as plain text, without case, in path then line order. Files that are
+    /// not text are skipped.
+    fn search<'a>(
+        &'a self,
+        at: &'a Place,
+        query: &'a str,
+        text: bool,
+    ) -> BoxFuture<'a, FsResult<Vec<Hit>>>;
+
+    /// Create or replace a text file, or add to its end, all or nothing.
+    /// Keeps what was there, for `call`'s undo.
     fn write<'a>(
         &'a self,
         at: &'a Place,
         text: &'a str,
         append: bool,
+        call: &'a CallId,
     ) -> BoxFuture<'a, FsResult<()>>;
 
     /// Move inside one folder. Never replaces what is at `to`.
-    fn rename<'a>(&'a self, from: &'a Place, to: &'a Place) -> BoxFuture<'a, FsResult<()>>;
+    fn rename<'a>(
+        &'a self,
+        from: &'a Place,
+        to: &'a Place,
+        call: &'a CallId,
+    ) -> BoxFuture<'a, FsResult<()>>;
 
     /// Move to the Trash.
-    fn trash<'a>(&'a self, at: &'a Place) -> BoxFuture<'a, FsResult<()>>;
+    fn trash<'a>(&'a self, at: &'a Place, call: &'a CallId) -> BoxFuture<'a, FsResult<()>>;
+
+    /// Undo what `call` changed, if it changed anything.
+    fn undo<'a>(&'a self, app: &'a AppId, call: &'a CallId) -> BoxFuture<'a, FsResult<()>>;
 
     /// Whether changes in `folder` can be undone by the engine.
     fn reversible(&self, folder: &str) -> bool;

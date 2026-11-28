@@ -48,7 +48,8 @@ fn pattern_longer_than_input_is_none() {
     );
 }
 
-// Parity with R1: typographic punctuation is folded at the last step.
+// Not an R1 test: R1 has none for its last, normalising pass, so this
+// one covers the ported punctuation table.
 #[test]
 fn normalised_folds_dashes_quotes_and_spaces() {
     let content = "let a = \u{201C}x\u{201D} \u{2014} y;\nend\n";

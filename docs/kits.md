@@ -88,18 +88,36 @@ Seven tools over the host's `FileSystem` (`Deps.files`; `MemoryFs` is the
 fake), specified in `harness_core::kits::FILES_SPECS`: `list_dir`,
 `read_file` and `search_files` (core, parallel, reads), then `write_file`,
 `edit_file`, `move_path` and `trash_path` (serial, `modifies_data`). Paths
-are logical: a linked folder's label, then the path inside it. `access`
-resolves every path once, refuses what is not plainly inside a linked
-folder, read-only folders for changes, and protected names, and keeps the
-places for the run. Errors are the `files.*` codes in
-`harness_core::kits::files_errors`.
+are logical: a linked folder's label, then the path inside it. Errors are
+the `files.*` codes in `harness_core::kits::files_errors`.
 
-`edit_file` finds its place with the match ladder (`files::ladder`): exact
-text, then whole lines ignoring trailing spaces, then ignoring spaces at
-both ends, then with typographic punctuation folded. Each step must find
-exactly one place. Reads page by display lines, so every page fits the
-result cap and pages cover the file with no gap. Differences from the
-references are in `docs/kits-deviations.md`.
+- **Resolving.** `access` resolves every path once, refuses what is not
+  plainly inside a linked folder, read-only folders for changes, and
+  protected names, and keeps the places for that session's call. The
+  approval preview shows whole values: the path, the text of a write, the
+  find and replace of an edit.
+- **The service checks again.** A `Place` names the app. Whatever a caller
+  puts in one, the service refuses a folder that is not linked for that
+  app now, a change in a folder linked for reading only now, a link that
+  leads out, and a protected place. Changes are tied to their call and can
+  be undone (`FileSystem::undo`). `files::contract` is the suite; the
+  engine's service runs it too.
+- **Lines.** A line longer than 512 bytes is shown as several display
+  lines, and every line number counts display lines: `read_file`'s header
+  and `from_line`, `search_files` hits and `edit_file` results agree.
+- **Results fit the cap** (at least 1 KiB): listings and reads page with
+  `after` and `from_line`, and pages cover the content with no gap or
+  overlap; search shows what fits and counts the rest.
+- **`edit_file`** finds its place with the match ladder (`files::ladder`):
+  exact text, then whole lines ignoring trailing spaces, then ignoring
+  spaces at both ends, then with typographic punctuation folded. Each step
+  must find exactly one place. The result says which step matched and
+  shows the changed lines. Line endings are kept.
+- **Result meta** (for the person's view, never the model): `scope` (the
+  folder's id), `backend` (`host`), `path`, `to` for a move, and
+  `pre_image` (the call id) for a change that can be undone.
+
+Differences from the references are in `docs/kits-deviations.md`.
 
 ## Tests
 
@@ -110,7 +128,9 @@ references are in `docs/kits-deviations.md`.
   kits-offer fixture.
 - The host flows with fake kit tools (harness-host `tests/kits.rs`).
 - A snapshot of every spec (harness-core `tests/specs.rs`).
-- The files kit over the memory store (harness-toolkit `tests/files.rs`),
-  the ladder's parity vectors (`tests/parity/`), the kits-files fixture
-  replayed through the tools (`tests/files_fixture.rs`), and the kit
-  through the host (harness-host `tests/files_kit.rs`).
+- The files contract, passed by the memory store (harness-toolkit
+  `files::contract`); the tools over it (`tests/files.rs`); invariant 9
+  over generated inputs (`tests/files_caps.rs`); R1's parity vectors
+  (`tests/parity/R1/`); the two files fixtures replayed through the tools
+  (`tests/files_fixture.rs`); and the kit through the host (harness-host
+  `tests/files_kit.rs`).

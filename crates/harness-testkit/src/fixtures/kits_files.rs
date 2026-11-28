@@ -1,12 +1,10 @@
 // Copyright 2026 Anud Inc.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! kits-files: the files kit on one linked folder and one read-only one.
-//! A listing and a paged read run under a read grant without asking; an
-//! edit under an ask-first grant is approved for the session, and a second
-//! edit runs without asking; a write to the read-only folder and a find
-//! that matches twice fail as results. The results are what the tools
-//! return over [`SEED`]; harness-toolkit's tests replay the calls to check.
+//! What the two files-kit fixtures share: the linked folders, the files
+//! before each session, and small builders. The results in kits-files-read
+//! and kits-files-write are what the tools return over this seed;
+//! harness-toolkit's tests replay every recorded call to check.
 
 use super::build::*;
 use crate::recorder::{Ctx, Recorder};
@@ -14,24 +12,33 @@ use harness_core::access::{PreviewItem, Scope};
 use harness_core::kits::FILES_SPECS;
 use harness_core::*;
 
-/// The linked folders, as (id, label, read only).
-pub const LINKS: &[(&str, &str, bool)] = &[("f1", "Design", false), ("f2", "Archive", true)];
+/// The linked folders, as (id, label, read only, changes can be undone).
+pub const LINKS: &[(&str, &str, bool, bool)] = &[
+    ("f1", "Design", false, true),
+    ("f2", "Archive", true, true),
+    ("f3", "Drafts", false, true),
+    ("f4", "Camera", false, false),
+];
 
-/// The files before the session, as (folder id, path, text).
+/// The files before each session, as (folder id, path, text).
 pub const SEED: &[(&str, &str, &str)] = &[
     (
         "f1",
         "brief.md",
-        "Brief\n\nGoal: a calmer home screen.\nOwner: Sam\n",
+        "Brief\n\nGoal: a calmer home screen.\nOwner: Sam\nReview: Friday\n",
     ),
     ("f1", "icons/home.svg", "<svg/>"),
+    ("f1", "icons/logo.bin", "\u{0}\u{1}"),
+    ("f1", "notes/homework.md", "Check the home icon.\n"),
     ("f2", "old.md", "Old notes\n"),
+    ("f3", "plan.md", "Plan\n"),
+    ("f4", "shots.md", "Shot list\n"),
 ];
 
-/// The result cap the session's tools were given.
+/// The result cap the sessions' tools were given.
 pub const CAP: usize = 8 * 1024;
 
-fn spec(name: &str) -> ToolSpec {
+pub(super) fn spec(name: &str) -> ToolSpec {
     FILES_SPECS
         .iter()
         .find(|s| s.name == name)
@@ -39,221 +46,121 @@ fn spec(name: &str) -> ToolSpec {
         .unwrap_or_else(|| panic!("{name} is a files tool"))
 }
 
-fn args<const N: usize>(pairs: [(&str, &str); N]) -> Value {
+pub(super) fn offered() -> Vec<ToolSpec> {
+    FILES_SPECS.iter().map(|k| k.tool_spec()).collect()
+}
+
+pub(super) fn folders() -> Vec<String> {
+    LINKS
+        .iter()
+        .map(|(_, label, ..)| (*label).to_owned())
+        .collect()
+}
+
+pub(super) fn args<const N: usize>(pairs: [(&str, &str); N]) -> Value {
     Value::object(pairs.map(|(k, v)| (k, Value::from(v))))
 }
 
-fn design() -> Scope {
+pub(super) fn scope(id: &str) -> Scope {
+    let label = LINKS.iter().find(|l| l.0 == id).map_or(id, |l| l.1);
     Scope {
         kind: ScopeKind::Folder,
-        id: "f1".into(),
-        label: "Design".into(),
+        id: id.into(),
+        label: label.into(),
     }
 }
 
-fn failed(call: &str, code: &str, message: &str) -> ToolResult {
-    ToolResult {
+pub(super) fn items<const N: usize>(pairs: [(&str, &str); N]) -> Vec<PreviewItem> {
+    pairs
+        .map(|(label, value)| PreviewItem {
+            label: label.into(),
+            value: value.into(),
+        })
+        .to_vec()
+}
+
+/// The meta a files result carries: the scope, the backend, the path (and
+/// where a move went) and, for a change that can be undone, the call that
+/// holds its pre-image.
+pub(super) fn meta(id: &str, tool: &str, input: &Value) -> Option<Value> {
+    let field = |k: &str| input.get(k).and_then(Value::as_str);
+    let path = field("path").or(field("from")).unwrap_or("");
+    let label = path.split('/').next().filter(|l| !l.is_empty());
+    let link = LINKS
+        .iter()
+        .find(|l| Some(l.1) == label)
+        .unwrap_or(&LINKS[0]);
+    let shown = if path.is_empty() { link.1 } else { path };
+    let mut facts = vec![
+        ("scope", Value::from(link.0)),
+        ("backend", Value::from("host")),
+        ("path", Value::from(shown)),
+    ];
+    if let Some(to) = field("to") {
+        facts.push(("to", Value::from(to)));
+    }
+    let changes = FILES_SPECS.iter().any(|s| s.name == tool && !s.core);
+    if changes && link.3 {
+        facts.push(("pre_image", Value::from(id)));
+    }
+    Some(Value::object(facts))
+}
+
+/// A call and its successful result.
+pub(super) fn ok(r: &mut Recorder, s: &mut Ctx, id: &str, tool: &str, input: Value, out: &str) {
+    let done = ToolResult {
+        meta: meta(id, tool, &input),
+        ..result(id, ToolOutcome::Ok, text(out))
+    };
+    r.call(s, call(id, &spec(tool), input, None));
+    r.result(s, done, 30);
+}
+
+/// A call and its failure. A failure to resolve (the path is not plainly
+/// inside a writable linked folder) happens before the run and carries no
+/// meta; any other failure is the run's.
+pub(super) fn fails(
+    r: &mut Recorder,
+    s: &mut Ctx,
+    id: &str,
+    tool: &str,
+    input: Value,
+    code: &str,
+    message: &str,
+) {
+    let unresolved = [
+        "files.not_linked",
+        "files.outside_folder",
+        "files.read_only",
+        "files.protected",
+    ]
+    .contains(&code);
+    let failed = ToolResult {
         error: Some(ErrorInfo::new(code, message)),
-        ..result(call, ToolOutcome::Error, text(message))
-    }
+        meta: if unresolved {
+            None
+        } else {
+            meta(id, tool, &input)
+        },
+        ..result(id, ToolOutcome::Error, text(message))
+    };
+    r.call(s, call(id, &spec(tool), input, None));
+    r.result(s, failed, 0);
 }
 
-fn reply_and_end(r: &mut Recorder, s: &mut Ctx, answer: &str) {
+pub(super) fn open(r: &mut Recorder, s: &mut Ctx, says: &str, first: bool) {
+    r.turn(s, Cause::User, None);
+    r.user(s, says);
+    r.context_with(s, None, folders());
+    r.step(s, Purpose::Reply, first.then(offered));
+    r.reply(s, text("Let me look."), StopReason::ToolUse, None);
+}
+
+pub(super) fn close(r: &mut Recorder, s: &mut Ctx, answer: &str) {
+    r.end_step(s, StepOutcome::ToolCalls);
     r.step(s, Purpose::Reply, None);
     r.reply(s, text(answer), StopReason::End, None);
     r.end_step(s, StepOutcome::Complete);
     r.end_turn(s, TurnStop::Done, None);
-}
-
-fn edit(r: &mut Recorder, s: &mut Ctx, id: &str, find: &str, replace: &str) -> Value {
-    let input = args([
-        ("path", "Design/brief.md"),
-        ("find", find),
-        ("replace", replace),
-    ]);
-    r.call(s, call(id, &spec("edit_file"), input.clone(), None));
-    input
-}
-
-/// The fixture's events.
-pub fn record() -> Vec<SessionEvent> {
-    let mut r = Recorder::new();
-    let mut s = interactive(&mut r, "chat", "chat", Profile::Standard);
-    let offered: Vec<ToolSpec> = FILES_SPECS.iter().map(|k| k.tool_spec()).collect();
-    let folders = vec!["Design".to_string(), "Archive".to_string()];
-
-    // Turn 1: read without asking.
-    r.turn(&mut s, Cause::User, None);
-    r.user(
-        &mut s,
-        "What is in my design folder, and what does the brief say?",
-    );
-    r.context_with(&mut s, None, folders.clone());
-    r.step(&mut s, Purpose::Reply, Some(offered));
-    r.reply(&mut s, text("Let me look."), StopReason::ToolUse, None);
-    r.call(
-        &mut s,
-        call(
-            "cal_0001",
-            &spec("list_dir"),
-            args([("path", "Design")]),
-            Some(1),
-        ),
-    );
-    let read = Value::object([
-        ("path", Value::from("Design/brief.md")),
-        ("lines", Value::from(3u64)),
-    ]);
-    r.call(&mut s, call("cal_0002", &spec("read_file"), read, Some(1)));
-    r.result(
-        &mut s,
-        result(
-            "cal_0001",
-            ToolOutcome::Ok,
-            text("Design:\nbrief.md  46 bytes  0\nicons/\n"),
-        ),
-        40,
-    );
-    r.result(
-        &mut s,
-        result(
-            "cal_0002",
-            ToolOutcome::Ok,
-            text("Design/brief.md, lines 1 to 3 of 4. Go on with from_line = 4.\nBrief\n\nGoal: a calmer home screen.\n"),
-        ),
-        40,
-    );
-    r.end_step(&mut s, StepOutcome::ToolCalls);
-    reply_and_end(
-        &mut r,
-        &mut s,
-        "Design holds brief.md and an icons folder. The brief's goal is a calmer home screen.",
-    );
-
-    // Turn 2: an edit under an ask-first grant, approved for the session.
     r.advance(20_000);
-    r.turn(&mut s, Cause::User, None);
-    r.user(&mut s, "Make Alex the owner.");
-    r.context_with(&mut s, None, folders.clone());
-    r.step(&mut s, Purpose::Reply, None);
-    r.reply(
-        &mut s,
-        text("Changing the owner."),
-        StopReason::ToolUse,
-        None,
-    );
-    let input = edit(&mut r, &mut s, "cal_0003", "Owner: Sam", "Owner: Alex");
-    let approval = ApprovalId::new(r.id("apv"));
-    let summary = format!(
-        "edit_file {}",
-        serde_json::to_string(&input).unwrap_or_default()
-    );
-    r.emit(
-        &s,
-        Event::ApprovalRequest(ApprovalRequest {
-            approval: approval.clone(),
-            call: Some(CallId::from("cal_0003")),
-            summary,
-            rule: ApprovalRule::Grant,
-            effects: vec![Effect::ModifiesData],
-            expires_at: Some(r.now() + 300_000),
-            scope: Some(design()),
-            preview: vec![
-                PreviewItem {
-                    label: "Path".into(),
-                    value: "Design/brief.md".into(),
-                },
-                PreviewItem {
-                    label: "Find".into(),
-                    value: "Owner: Sam".into(),
-                },
-                PreviewItem {
-                    label: "Replace with".into(),
-                    value: "Owner: Alex".into(),
-                },
-            ],
-            reversible: Some(true),
-            remember: Some(Remember::Session),
-        }),
-    );
-    r.advance(3_000);
-    r.emit(
-        &s,
-        Event::ApprovalDecision(ApprovalDecision {
-            approval,
-            decision: Decision::Allow,
-            basis: Basis::User,
-            by: by(DeciderScope::Shell, None),
-            answer: None,
-            reason: None,
-            remember: Some(Remember::Session),
-        }),
-    );
-    r.result(
-        &mut s,
-        result(
-            "cal_0003",
-            ToolOutcome::Ok,
-            text("Edited Design/brief.md at line 4."),
-        ),
-        30,
-    );
-    r.end_step(&mut s, StepOutcome::ToolCalls);
-    reply_and_end(&mut r, &mut s, "Alex is now the owner in the brief.");
-
-    // Turn 3: remembered for the session; then two failures as results.
-    r.advance(20_000);
-    r.turn(&mut s, Cause::User, None);
-    r.user(
-        &mut s,
-        "Say calm instead of calmer, and copy the brief to Archive.",
-    );
-    r.context_with(&mut s, None, folders);
-    r.step(&mut s, Purpose::Reply, None);
-    r.reply(&mut s, text("On it."), StopReason::ToolUse, None);
-    edit(&mut r, &mut s, "cal_0004", "calmer", "calm");
-    r.result(
-        &mut s,
-        result(
-            "cal_0004",
-            ToolOutcome::Ok,
-            text("Edited Design/brief.md at line 3."),
-        ),
-        30,
-    );
-    r.call(
-        &mut s,
-        call(
-            "cal_0005",
-            &spec("write_file"),
-            args([("path", "Archive/brief.md"), ("text", "Brief\n")]),
-            None,
-        ),
-    );
-    r.result(
-        &mut s,
-        failed(
-            "cal_0005",
-            "files.read_only",
-            "Archive is linked for reading only.",
-        ),
-        0,
-    );
-    edit(&mut r, &mut s, "cal_0006", "e", "E");
-    r.result(
-        &mut s,
-        failed(
-            "cal_0006",
-            "files.many_matches",
-            "find matched 6 places, on lines 1, 3, 4. Give more lines so it matches one.",
-        ),
-        10,
-    );
-    r.end_step(&mut s, StepOutcome::ToolCalls);
-    reply_and_end(
-        &mut r,
-        &mut s,
-        "The brief now says calm. Archive is linked for reading only, so I could not copy it there.",
-    );
-    r.finish()
 }

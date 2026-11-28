@@ -8,17 +8,19 @@ Entries for the Milestone 0 crates (step 0 through harness-host) are in
 ## 2026-11-28 — Tool kits: the files kit
 
 The first kit, per "Tool kits: architecture v0.3" (`docs/kits.md`).
-Deviations 1 to 11 under "The files kit" in `docs/kits-deviations.md`.
+Deviations 1 to 19 under "The files kit" in `docs/kits-deviations.md`.
 
 - **harness-core**: `kits` (the seven specs, `kit_spec`, the `files.*`
   error codes). No schema change.
-- **harness-toolkit**: `files`: the `FileSystem` trait, the path resolver,
-  the match ladder ported from R1 with parity vectors, `MemoryFs`, and
-  `files_kit`. Dev-depends on harness-testkit for the fixture replay.
+- **harness-toolkit**: `files`: the `FileSystem` trait and its contract
+  suite, the path resolver, the match ladder and line model ported from R1
+  with parity vectors, `MemoryFs` (links, read-only folders, links on
+  disk, pre-images and undo), and `files_kit`. Dev-depends on
+  harness-testkit for the fixture replay.
 - **harness-host** (API change): `Deps.files`; a host given one registers
   the kit. `MemoryHost::with_files`.
 - **harness-preset**: chat is version 7 and uses the files kit.
-- **harness-testkit**: the kits-files fixture.
+- **harness-testkit**: the kits-files-read and kits-files-write fixtures.
 - `THIRD-PARTY-NOTICES.md` carries R1's notice.
 
 ## 2026-11-28 — Tool kits: the frame

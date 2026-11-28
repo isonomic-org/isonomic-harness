@@ -81,54 +81,95 @@ gate; the identity specification (in house) for grant answers.
 ## The files kit (harness #50)
 
 References opened at their pins: R1 (Port) `apply-patch/src/seek_sequence.rs`
-and its tests, `file_update.rs`, `file_update_tests.rs`, `text_file.rs`,
-`parser.rs`; R2 (Port) the developer extension's `edit.rs` and `tree.rs`;
-R4 (Behaviour) the filesystem server's `lib.ts` and `path-validation.ts`;
-R13 (Behaviour) the edit tool. Code is taken from R1 only (the ladder's line
-steps and punctuation table, `files/ladder.rs`), with R1's tests as parity
-vectors in `crates/harness-toolkit/tests/parity/`. R3, R5 and R6 are the
-engine's service's dependencies; the toolkit has only the memory store.
+and its tests, `text_file.rs`, `file_update.rs`, `file_update_tests.rs`,
+`parser.rs`, and `file-search/src/lib.rs` for the ranking order; R2 (Port)
+the developer extension's `edit.rs` and `tree.rs`; R4 (Behaviour) the
+filesystem server's `lib.ts` and `path-validation.ts`; R13 (Behaviour) the
+edit tool. Code is taken from R1 only: the ladder's line steps and
+punctuation table (`files/ladder.rs`) and the line-ending model
+(`files/lines.rs`), with R1's tests as parity vectors in
+`crates/harness-toolkit/tests/parity/R1/`. R3, R5, R6 and D1 are the
+engine service's dependencies; the toolkit has the trait, the contract and
+the memory store.
 
-1. **Every ladder step must match exactly one place.** R1 returns the first
-   match; here a step that matches more than one place stops the ladder
-   with `files.many_matches` and the lines, so an edit never lands on the
-   wrong copy. Step one is an exact substring, not R1's exact line match,
-   so a find inside one line works as in R2 and R13.
-2. **An identical find and replace succeeds with "No change"**, without
+1. **Every ladder step must match exactly one place** (planned by the
+   design). R1 returns the first match; here a step that matches more than
+   one place stops the ladder with `files.many_matches`. Overlapping exact
+   matches count as separate places.
+2. **A ladder replacement ends where the replaced lines ended.** As in R1,
+   unchanged lines keep their endings and inserted lines take the file's
+   first ending. R1 also gives every line of an updated file an ending;
+   here a last line without one stays without one, because `edit_file`
+   changes one place and nothing else.
+3. **An identical find and replace succeeds with "No change"**, without
    reading the file. R13 refuses it; nothing is wrong with the call.
-3. **Reads page by display lines.** A line longer than half the result cap
-   is split at a character boundary into display lines, and `from_line` and
-   the header count display lines. Every page then fits the cap and pages
-   cover the file with no gap or overlap (invariant 9). R2 and R4 return
-   the whole file or cut it.
-4. **Paths are logical**: a linked folder's label, then the path inside it.
-   Absolute, home, drive and `..` paths are refused before any service
-   call (`files.not_linked`, `files.outside_folder`). R4 checks real paths
-   against allowed directories; here the tools never see a real path.
-5. **Protected names.** `.git`, `.hg`, `.svn` and `.jj` anywhere in a path
-   (compared without case) are neither read nor changed, and `AGENTS.md` at
-   a folder's top is never changed (`files.protected`). Neither is the
-   linked folder itself.
-6. **An empty `list_dir` path lists the linked folders**, and its access
+4. **Lines longer than 512 bytes are shown as several display lines**, cut
+   at character boundaries, and every line number the tools show or take
+   counts display lines: the read header and `from_line`, search hits and
+   edit results. So a hit's number is the line `read_file` shows, every
+   page fits the smallest cap, and pages concatenate to the file exactly,
+   endings included (invariant 9). R2 and R4 return the whole file or cut
+   it.
+5. **The smallest cap is 1 KiB.** A smaller `result_cap` is raised to it:
+   one display line and its header must fit. The offer table's smallest is
+   2 KiB. Paths and names in results are clipped to 160 bytes with `...`;
+   the `after` cursor is always a whole name.
+6. **Paths are logical**: a linked folder's label, then the path inside it.
+   Absolute, home, drive and `..` paths and control characters are refused
+   before any service call. R4 checks real paths against allowed
+   directories; here the tools never see a real path, and the service
+   checks again (the contract's link rows).
+7. **Protected names.** `.git`, `.hg`, `.svn` and `.jj` anywhere in a path
+   are neither read nor changed, and `AGENTS.md` at any depth is never
+   changed (`files.protected`), compared in lower case. Nor is the linked
+   folder itself, nor a folder that holds a protected place (it cannot be
+   moved or trashed). The toolkit sees spellings; the design's rule that
+   the check "compares what was opened" is the service's, and the contract
+   has the row for a link that leads to a protected place. Other character
+   forms are covered only by the engine's Mac tier.
+8. **An empty `list_dir` path lists the linked folders**, and its access
    names the first linked folder, because an access has one scope. A read
    grant on any linked folder therefore covers the listing of names.
-7. **Moves never replace and stay in one folder** (`files.exists`,
-   `files.cross_folder`). R2 overwrites; R4 refuses an existing target too.
-8. **Text search is plain, case-insensitive text, and the tool walks the
-   folder through `list` and `read`.** R5 is named as the engine's
-   dependency for search; the trait has no search method yet, so the
-   engine service cannot use it. Open: move search into `FileSystem` so the
-   engine's service does it with R5.
-9. **The places resolved by `access` are kept per call** and the run uses
-   them; a call that runs without its access check is refused
-   (`tool.unresolved`). A call denied after resolving leaves its entry until
-   the tool is dropped. Open: clear it when the host settles a call that
-   never runs.
-10. **The chat preset uses the files kit** (`[kits] use = ["files"]`,
+9. **Name search in the memory store is a simple forgiving match** (the
+   query's characters in order, without case; runs and an early start
+   score higher; ties by path, R1's order). The engine's service uses D1
+   through the same trait method; the contract fixes only that a slip
+   still finds the name and that the exact name comes first. No D1
+   dependency is added to the harness.
+10. **Search returns the first results that fit and a count of the rest**,
+    with no cursor: the tool has four input fields and none is spare. The
+    model narrows the folder or lengthens the query.
+11. **`list_dir` shows dates as UTC minutes** (`2026-11-28 06:04`). The
+    harness has the person's zone only inside the `now` tool; R4 prints the
+    full timestamp.
+12. **The places resolved by `access` are kept per session and call**, at
+    most 256, oldest dropped first, and the run uses them; a call that runs
+    without its access check, or with another app's places, is refused
+    (`tool.unresolved`). The service still checks every place itself.
+13. **`edit_file` reads, then writes.** A change another session makes to
+    the same file between the two is lost. Open: the engine's service
+    should compare the file with what was read, and refuse on a mismatch;
+    the trait needs an expected-content argument for that.
+14. **Invariant 9 is tested over generated inputs from a seeded generator,
+    not a property-testing crate** (`tests/files_caps.rs`), for the reason
+    in the frame's entry 6: no new dependency. It has no shrinking.
+    Invariants 6 and 7 belong to the engine's service; the contract carries
+    their rows (links never lead out; changes then undos in reverse leave
+    the folder as it began) and the memory store passes them.
+15. **The files contract lives in harness-toolkit** (`files::contract`),
+    beside the trait, as the grants contract does (the frame's entry 7).
+16. **Fuzz targets, the path escape table with the two published escapes,
+    the prefix canary, the crash test and the Mac tier are the engine
+    service's** (issue 5). Nothing in the toolkit compares path prefixes or
+    touches a disk.
+17. **The chat preset uses the files kit** (`[kits] use = ["files"]`,
     version 7). Kit tools are offered only where a grant could cover them,
     so sessions without a linked folder, and every existing fixture, are
     unchanged.
-11. **The kits-files fixture is scripted, then checked.** Its results are
-    written in the recorder, and a harness-toolkit test runs every recorded
-    call again over the fixture's seed and requires the same content and
-    error code.
+18. **The files fixtures are scripted, then checked.** Their results are
+    written in the recorder, and a harness-toolkit test resolves and runs
+    every recorded call again over the fixtures' seed and requires the same
+    content, meta and error code, and the same scope, preview and
+    reversibility on every approval request.
+19. **A file used as a folder in a path gives `files.not_found`**; the
+    design has no code for it.

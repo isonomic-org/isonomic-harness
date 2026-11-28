@@ -8,15 +8,20 @@
 
 use super::{FsError, Linked};
 use harness_core::kits::files_errors as code;
+use harness_core::AppId;
 
-/// A resolved place: which linked folder, and the path inside it.
+/// A resolved place: for which app, which linked folder, and the path
+/// inside it. The service checks again, when it acts, that the folder is
+/// still linked for the app and still writable for a change.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Place {
+    /// The app the folder is linked for.
+    pub app: AppId,
     /// The linked folder's id.
     pub folder: String,
     /// The linked folder's label.
     pub label: String,
-    /// Linked for reading only.
+    /// Linked for reading only, when it was resolved.
     pub read_only: bool,
     /// The path inside it, `/`-separated, empty for the folder itself.
     pub path: String,
@@ -24,8 +29,15 @@ pub struct Place {
 
 /// Version-control metadata folders, compared without case.
 const VCS: &[&str] = &[".git", ".hg", ".svn", ".jj"];
-/// The project instruction file at a folder's top, compared without case.
+/// The project instruction file, at any depth, compared without case.
 const INSTRUCTIONS: &str = "agents.md";
+
+/// A name in lower case, all of Unicode: this check sees spellings only.
+/// The engine's service compares what it opened, which also covers other
+/// character forms.
+fn folded(name: &str) -> String {
+    name.to_lowercase()
+}
 
 impl Place {
     /// The logical path, as the model writes it.
@@ -41,13 +53,13 @@ impl Place {
     pub fn in_vcs(&self) -> bool {
         self.path
             .split('/')
-            .any(|s| VCS.iter().any(|v| s.eq_ignore_ascii_case(v)))
+            .any(|s| VCS.contains(&folded(s).as_str()))
     }
 
     /// Something the kit never changes: version-control metadata or the
     /// project instruction file.
     pub fn protected(&self) -> bool {
-        self.in_vcs() || self.path.eq_ignore_ascii_case(INSTRUCTIONS)
+        self.in_vcs() || folded(self.name()) == INSTRUCTIONS
     }
 
     /// The name of the last segment, or the label for the folder itself.
@@ -60,8 +72,8 @@ impl Place {
     }
 }
 
-/// Resolve `path` against the folders linked for the session.
-pub fn resolve(linked: &[Linked], path: &str) -> Result<Place, FsError> {
+/// Resolve `path` against the folders linked for `app`.
+pub fn resolve(app: &AppId, linked: &[Linked], path: &str) -> Result<Place, FsError> {
     let trimmed = path.trim();
     let not_linked = || {
         let names: Vec<&str> = linked.iter().map(|l| l.label.as_str()).collect();
@@ -70,9 +82,10 @@ pub fn resolve(linked: &[Linked], path: &str) -> Result<Place, FsError> {
         } else {
             format!("Linked folders: {}.", names.join(", "))
         };
+        let shown: String = trimmed.chars().take(80).collect();
         FsError::new(
             code::NOT_LINKED,
-            format!("Start the path with a linked folder's name, like Design/notes.md. {list}"),
+            format!("Permission denied: {shown} is not a linked folder. {list}"),
         )
     };
     if trimmed.is_empty()
@@ -110,7 +123,14 @@ pub fn resolve(linked: &[Linked], path: &str) -> Result<Place, FsError> {
             }
         }
     };
+    if trimmed.chars().any(char::is_control) {
+        return Err(FsError::new(
+            code::NOT_FOUND,
+            "Paths cannot hold control characters.",
+        ));
+    }
     Ok(Place {
+        app: app.clone(),
         folder: folder.id.clone(),
         label: folder.label.clone(),
         read_only: folder.read_only,
@@ -138,17 +158,33 @@ mod tests {
     }
 
     fn err(p: &str) -> &'static str {
-        resolve(&linked(), p).unwrap_err().code
+        resolve(&AppId::from("chat"), &linked(), p)
+            .unwrap_err()
+            .code
     }
 
     #[test]
     fn resolves_inside_a_linked_folder() {
-        let p = resolve(&linked(), "Design/icons/./a.svg").unwrap();
+        let p = resolve(&AppId::from("chat"), &linked(), "Design/icons/./a.svg").unwrap();
         assert_eq!((p.folder.as_str(), p.path.as_str()), ("f1", "icons/a.svg"));
         assert_eq!(p.logical(), "Design/icons/a.svg");
-        assert_eq!(resolve(&linked(), "notes").unwrap().folder, "f2");
-        assert!(resolve(&linked(), "Notes/x").unwrap().read_only);
-        assert_eq!(resolve(&linked(), "Design").unwrap().path, "");
+        assert_eq!(
+            resolve(&AppId::from("chat"), &linked(), "notes")
+                .unwrap()
+                .folder,
+            "f2"
+        );
+        assert!(
+            resolve(&AppId::from("chat"), &linked(), "Notes/x")
+                .unwrap()
+                .read_only
+        );
+        assert_eq!(
+            resolve(&AppId::from("chat"), &linked(), "Design")
+                .unwrap()
+                .path,
+            ""
+        );
     }
 
     #[test]
@@ -162,12 +198,20 @@ mod tests {
     }
 
     #[test]
+    fn control_characters_are_refused() {
+        assert_eq!(err("Design/a\u{0}b"), code::NOT_FOUND);
+        assert_eq!(err("Design/a\nb"), code::NOT_FOUND);
+    }
+
+    #[test]
     fn protected_names() {
-        let at = |p: &str| resolve(&linked(), p).unwrap();
+        let at = |p: &str| resolve(&AppId::from("chat"), &linked(), p).unwrap();
         assert!(at("Design/.git/config").protected());
         assert!(at("Design/sub/.JJ/x").protected());
         assert!(at("Design/AGENTS.md").protected());
-        assert!(!at("Design/sub/AGENTS.md").protected());
+        assert!(at("Design/sub/agents.MD").protected());
+        assert!(at("Design/Sub/.GIT/x").protected());
+        assert!(at("Design/ÄGENTS.md").name() == "ÄGENTS.md");
         assert!(!at("Design/gitignore").protected());
     }
 }

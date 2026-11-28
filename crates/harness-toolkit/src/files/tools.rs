@@ -2,31 +2,40 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 //! The seven files tools over a [`FileSystem`]. `access` resolves each path
-//! once and keeps the places for the call, so the run never looks a name
-//! up a second time; the run then works on those places only.
+//! once and keeps the places for that session's call, so the run never
+//! looks a name up a second time; the service checks them again as it
+//! acts. Every result fits the session's cap (invariant 9).
 
-use super::ladder::{replace_one, Found, Step};
-use super::{resolve, Entry, FileSystem, FsError, Place};
+use super::text::clip;
+use super::{resolve, FileSystem, FsError, Place};
 use harness_core::access::{Access, PreviewItem, Scope};
 use harness_core::kits::{files_errors as code, kit_spec, KitSpec};
 use harness_core::offer::KitMember;
-use harness_core::{future::BoxFuture, CallId, Number, Remember, ScopeKind, Value};
+use harness_core::{future::BoxFuture, CallId, Number, Remember, ScopeKind, SessionId, Value};
 use harness_tools::{Tool, ToolCtx, ToolDone, ToolOutput};
-use std::collections::HashMap;
+use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 
 /// The default result cap, in bytes, when the capability table gives none.
 pub const DEFAULT_CAP: usize = 8 * 1024;
+/// The smallest cap the tools work to; a smaller one is raised to it.
+pub const MIN_CAP: usize = 1024;
 /// The largest file the tools read whole.
 pub const READ_MAX: usize = 4 * 1024 * 1024;
-/// How many files a text search reads at most.
-const SEARCH_FILES: usize = 2_000;
+/// Resolved calls kept at most; the oldest is dropped first.
+const KEPT: usize = 256;
+/// The most of a path a header or a listing line shows.
+const SHOWN_PATH: usize = 160;
+
+mod run;
+
+type Key = (SessionId, CallId);
 
 /// One files tool.
 pub struct FilesTool {
     spec: &'static KitSpec,
     fs: Arc<dyn FileSystem>,
-    places: Mutex<HashMap<CallId, Vec<Place>>>,
+    places: Mutex<VecDeque<(Key, Vec<Place>)>>,
 }
 
 /// The files kit over `fs`, in the specs' order.
@@ -38,7 +47,7 @@ pub fn files_kit(fs: Arc<dyn FileSystem>) -> Vec<Arc<dyn Tool>> {
             Arc::new(FilesTool {
                 spec,
                 fs: fs.clone(),
-                places: Mutex::new(HashMap::new()),
+                places: Mutex::new(VecDeque::new()),
             }) as Arc<dyn Tool>
         })
         .collect()
@@ -55,6 +64,10 @@ fn number(input: &Value, key: &str) -> Option<usize> {
     }
 }
 
+fn flag(input: &Value, key: &str) -> bool {
+    input.get(key) == Some(&Value::Bool(true))
+}
+
 fn fail(e: FsError) -> ToolDone {
     ToolDone::error(e.code, &e.message)
 }
@@ -64,26 +77,6 @@ fn item(label: &str, value: impl Into<String>) -> PreviewItem {
         label: label.into(),
         value: value.into(),
     }
-}
-
-/// Split `content` into display lines: its lines, with any line longer
-/// than `width` bytes split at character boundaries. Pages count display
-/// lines, so every page fits and pages cover the text with no gap.
-fn display_lines(content: &str, width: usize) -> Vec<&str> {
-    let mut out = Vec::new();
-    for line in content.lines() {
-        let mut rest = line;
-        while rest.len() > width {
-            let mut cut = width;
-            while !rest.is_char_boundary(cut) {
-                cut -= 1;
-            }
-            out.push(&rest[..cut]);
-            rest = &rest[cut..];
-        }
-        out.push(rest);
-    }
-    out
 }
 
 impl FilesTool {
@@ -96,19 +89,24 @@ impl FilesTool {
     }
 
     fn cap(cx: &ToolCtx) -> usize {
-        cx.result_cap.unwrap_or(DEFAULT_CAP).max(256)
+        cx.result_cap.unwrap_or(DEFAULT_CAP).max(MIN_CAP)
+    }
+
+    fn kept(&self) -> std::sync::MutexGuard<'_, VecDeque<(Key, Vec<Place>)>> {
+        self.places.lock().unwrap_or_else(|e| e.into_inner())
     }
 
     /// Resolve the call's paths and check what a change may touch.
     fn places(&self, input: &Value, cx: &ToolCtx) -> Result<Vec<Place>, FsError> {
         let linked = self.fs.linked(&cx.app);
-        let at = |p: &str| resolve(&linked, p);
+        let at = |p: &str| resolve(&cx.app, &linked, p);
         let places = match self.name() {
             "list_dir" if text(input, "path").trim().is_empty() => {
                 let first = linked
                     .first()
                     .ok_or_else(|| FsError::new(code::NOT_LINKED, "No folders are linked."))?;
                 vec![Place {
+                    app: cx.app.clone(),
                     folder: first.id.clone(),
                     label: first.label.clone(),
                     read_only: first.read_only,
@@ -127,6 +125,9 @@ impl FilesTool {
             }
             _ => vec![at(text(input, "path"))?],
         };
+        if self.name() == "search_files" && !["", "names", "text"].contains(&text(input, "in")) {
+            return Err(FsError::new("tool.input", "in is names or text."));
+        }
         if self.changes() {
             for p in &places {
                 if p.read_only {
@@ -155,15 +156,12 @@ impl FilesTool {
         let path = places[0].logical();
         match self.name() {
             "write_file" => {
-                let mode = if input.get("append") == Some(&Value::Bool(true)) {
+                let mode = if flag(input, "append") {
                     "Add to the end"
                 } else {
-                    "Create or replace"
+                    "Create or replace with"
                 };
-                vec![
-                    item("Path", path),
-                    item(mode, format!("{} bytes", text(input, "text").len())),
-                ]
+                vec![item("Path", path), item(mode, text(input, "text"))]
             }
             "edit_file" => vec![
                 item("Path", path),
@@ -176,218 +174,51 @@ impl FilesTool {
         }
     }
 
+    /// Facts for the person's view and the audit, never for the model:
+    /// the scope, the backend, the path (and where a move went), and for a
+    /// change that can be undone, the call that holds its pre-image.
+    fn meta(&self, cx: &ToolCtx, places: &[Place]) -> Value {
+        let at = &places[0];
+        let mut facts = vec![
+            ("scope", Value::from(at.folder.as_str())),
+            ("backend", Value::from("host")),
+            ("path", Value::from(at.logical())),
+        ];
+        if let Some(to) = places.get(1) {
+            facts.push(("to", Value::from(to.logical())));
+        }
+        if self.changes() && self.fs.reversible(&at.folder) {
+            facts.push(("pre_image", Value::from(cx.call.as_str())));
+        }
+        Value::object(facts)
+    }
+
     async fn run(&self, input: &Value, cx: &ToolCtx, places: Vec<Place>) -> ToolDone {
+        let cap = Self::cap(cx);
         let at = &places[0];
         let done = match self.name() {
-            "list_dir" => self.list(input, cx, at).await,
-            "read_file" => self.read(input, cx, at).await,
-            "search_files" => self.search(input, cx, at).await,
-            "write_file" => {
-                let append = input.get("append") == Some(&Value::Bool(true));
-                let body = text(input, "text");
-                self.fs.write(at, body, append).await.map(|()| {
-                    let verb = if append { "Added" } else { "Wrote" };
-                    format!("{verb} {} bytes to {}.", body.len(), at.logical())
-                })
-            }
-            "edit_file" => self.edit(input, at).await,
+            "list_dir" => self.list(input, cx, at, cap).await,
+            "read_file" => self.read(input, at, cap).await,
+            "search_files" => self.search(input, at, cap).await,
+            "write_file" => self.write(input, at, &cx.call).await,
+            "edit_file" => self.edit(input, at, &cx.call, cap).await,
             "move_path" => {
                 let to = &places[1];
                 self.fs
-                    .rename(at, to)
+                    .rename(at, to, &cx.call)
                     .await
-                    .map(|()| format!("Moved {} to {}.", at.logical(), to.logical()))
+                    .map(|()| format!("Moved to {}.", clip(&to.logical(), SHOWN_PATH)))
             }
             "trash_path" => self
                 .fs
-                .trash(at)
+                .trash(at, &cx.call)
                 .await
-                .map(|()| format!("Moved {} to the Trash.", at.logical())),
+                .map(|()| format!("Moved {} to the Trash.", clip(&at.logical(), SHOWN_PATH))),
             other => Ok(format!("{other} is not a files tool.")),
         };
         match done {
-            Ok(t) => ToolDone::ok(t),
-            Err(e) => fail(e),
-        }
-    }
-
-    async fn list(&self, input: &Value, cx: &ToolCtx, at: &Place) -> Result<String, FsError> {
-        let cap = Self::cap(cx);
-        if text(input, "path").trim().is_empty() {
-            let mut out = String::from("Linked folders:\n");
-            for l in self.fs.linked(&cx.app) {
-                let ro = if l.read_only { " (read only)" } else { "" };
-                out.push_str(&format!("{}/{ro}\n", l.label));
-            }
-            return Ok(out);
-        }
-        let after = text(input, "after");
-        let entries: Vec<Entry> = self.fs.list(at).await?;
-        let mut out = format!("{}:\n", at.logical());
-        let rest: Vec<&Entry> = entries
-            .iter()
-            .filter(|e| after.is_empty() || e.name.as_str() > after)
-            .collect();
-        for (shown, e) in rest.iter().enumerate() {
-            let line = if e.dir {
-                format!("{}/\n", e.name)
-            } else {
-                format!("{}  {} bytes  {}\n", e.name, e.size, e.modified)
-            };
-            if shown > 0 && out.len() + line.len() + 80 > cap {
-                let last = &rest[shown - 1].name;
-                out.push_str(&format!(
-                    "{} more. Call again with after = {last} to go on.\n",
-                    rest.len() - shown
-                ));
-                return Ok(out);
-            }
-            out.push_str(&line);
-        }
-        if rest.is_empty() {
-            out.push_str("(empty)\n");
-        }
-        Ok(out)
-    }
-
-    async fn read(&self, input: &Value, cx: &ToolCtx, at: &Place) -> Result<String, FsError> {
-        let content = self.fs.read(at, READ_MAX).await?;
-        let cap = Self::cap(cx);
-        let lines = display_lines(&content, cap / 2);
-        let total = lines.len();
-        let from = number(input, "from_line").unwrap_or(1);
-        if total == 0 {
-            return Ok(format!("{} is empty.\n", at.logical()));
-        }
-        if from > total {
-            return Ok(format!(
-                "{} has {total} lines; line {from} is past the end.\n",
-                at.logical()
-            ));
-        }
-        let want = number(input, "lines").unwrap_or(total);
-        let header_room = 160;
-        let mut body = String::new();
-        let mut last = from - 1;
-        for line in lines.iter().skip(from - 1).take(want) {
-            if body.len() + line.len() + 1 + header_room > cap && last >= from {
-                break;
-            }
-            body.push_str(line);
-            body.push('\n');
-            last += 1;
-        }
-        let more = if last < total {
-            format!(" Go on with from_line = {}.", last + 1)
-        } else {
-            String::new()
-        };
-        Ok(format!(
-            "{}, lines {from} to {last} of {total}.{more}\n{body}",
-            at.logical()
-        ))
-    }
-
-    async fn search(&self, input: &Value, cx: &ToolCtx, at: &Place) -> Result<String, FsError> {
-        let cap = Self::cap(cx);
-        let query = text(input, "query");
-        if query.is_empty() {
-            return Ok("Give a query to find.".into());
-        }
-        let in_text = text(input, "in") == "text";
-        let needle = query.to_lowercase();
-        let mut out = String::new();
-        let mut hits = 0;
-        let mut read = 0;
-        let mut stack = vec![at.clone()];
-        while let Some(dir) = stack.pop() {
-            for e in self.fs.list(&dir).await? {
-                let path = if dir.path.is_empty() {
-                    e.name.clone()
-                } else {
-                    format!("{}/{}", dir.path, e.name)
-                };
-                let child = Place {
-                    path,
-                    ..dir.clone()
-                };
-                if child.in_vcs() {
-                    continue;
-                }
-                let mut found = Vec::new();
-                if !in_text && e.name.to_lowercase().contains(&needle) {
-                    found.push(format!(
-                        "{}{}\n",
-                        child.logical(),
-                        if e.dir { "/" } else { "" }
-                    ));
-                }
-                if e.dir {
-                    stack.push(child);
-                } else if in_text && read < SEARCH_FILES {
-                    read += 1;
-                    if let Ok(body) = self.fs.read(&child, READ_MAX).await {
-                        for (n, line) in body.lines().enumerate() {
-                            if line.to_lowercase().contains(&needle) {
-                                let shown: String = line.trim().chars().take(200).collect();
-                                found.push(format!("{}:{}: {shown}\n", child.logical(), n + 1));
-                            }
-                        }
-                    }
-                }
-                for f in found {
-                    if out.len() + f.len() + 80 > cap {
-                        out.push_str("More matches are not shown; search a smaller folder.\n");
-                        return Ok(out);
-                    }
-                    out.push_str(&f);
-                    hits += 1;
-                }
-            }
-        }
-        if hits == 0 {
-            return Ok(format!("Nothing under {} matches {query}.\n", at.logical()));
-        }
-        Ok(out)
-    }
-
-    async fn edit(&self, input: &Value, at: &Place) -> Result<String, FsError> {
-        let (find, replace) = (text(input, "find"), text(input, "replace"));
-        if find == replace {
-            return Ok("No change: find and replace are the same.".into());
-        }
-        let content = self.fs.read(at, READ_MAX).await?;
-        match replace_one(&content, find, replace) {
-            Found::One { text, step, line } => {
-                self.fs.write(at, &text, false).await?;
-                let how = match step {
-                    Step::Exact => "",
-                    Step::TrimEnd => ", ignoring trailing spaces",
-                    Step::Trim => ", ignoring spaces at line ends",
-                    Step::Normalised => ", ignoring spaces and typographic punctuation",
-                };
-                Ok(format!("Edited {} at line {line}{how}.", at.logical()))
-            }
-            Found::None => Err(FsError::new(
-                code::NO_MATCH,
-                format!(
-                    "find matched nowhere in {}. Copy it from the file.",
-                    at.logical()
-                ),
-            )),
-            Found::Many(lines) => {
-                let mut on: Vec<usize> = lines.clone();
-                on.dedup();
-                let list: Vec<String> = on.iter().map(usize::to_string).collect();
-                Err(FsError::new(
-                    code::MANY_MATCHES,
-                    format!(
-                        "find matched {} places, on lines {}. Give more lines so it matches one.",
-                        lines.len(),
-                        list.join(", ")
-                    ),
-                ))
-            }
+            Ok(t) => ToolDone::ok(clip(&t, cap)),
+            Err(e) => fail(FsError::new(e.code, clip(&e.message, cap))),
         }
     }
 }
@@ -411,7 +242,9 @@ impl Tool for FilesTool {
         cx: &'a ToolCtx,
     ) -> Option<BoxFuture<'a, Result<Access, ToolDone>>> {
         Some(Box::pin(async move {
-            let places = self.places(input, cx).map_err(fail)?;
+            let places = self
+                .places(input, cx)
+                .map_err(|e| fail(FsError::new(e.code, clip(&e.message, Self::cap(cx)))))?;
             let first = &places[0];
             let access = Access {
                 scope: Scope {
@@ -425,31 +258,41 @@ impl Tool for FilesTool {
                 confined: false,
                 effects: None,
             };
-            self.places
-                .lock()
-                .unwrap_or_else(|e| e.into_inner())
-                .insert(cx.call.clone(), places);
+            let key = (cx.session.clone(), cx.call.clone());
+            let mut kept = self.kept();
+            kept.retain(|(k, _)| *k != key);
+            if kept.len() >= KEPT {
+                kept.pop_front();
+            }
+            kept.push_back((key, places));
             Ok(access)
         }))
     }
 
     fn call<'a>(&'a self, input: &'a Value, cx: &'a ToolCtx) -> BoxFuture<'a, ToolOutput> {
         Box::pin(async move {
-            let kept = self
-                .places
-                .lock()
-                .unwrap_or_else(|e| e.into_inner())
-                .remove(&cx.call);
-            let places = match kept {
-                Some(p) => p,
-                None => {
-                    return ToolOutput::Done(ToolDone::error(
-                        "tool.unresolved",
-                        "The call ran without its access check.",
-                    ))
-                }
+            let key = (cx.session.clone(), cx.call.clone());
+            let places = {
+                let mut kept = self.kept();
+                let i = kept.iter().position(|(k, _)| *k == key);
+                i.and_then(|i| kept.remove(i)).map(|(_, p)| p)
             };
-            ToolOutput::Done(self.run(input, cx, places).await)
+            let Some(places) = places else {
+                return ToolOutput::Done(ToolDone::error(
+                    "tool.unresolved",
+                    "The call ran without its access check.",
+                ));
+            };
+            if places.iter().any(|p| p.app != cx.app) {
+                return ToolOutput::Done(ToolDone::error(
+                    "tool.unresolved",
+                    "The call's places were resolved for another app.",
+                ));
+            }
+            let meta = self.meta(cx, &places);
+            let mut done = self.run(input, cx, places).await;
+            done.meta = Some(meta);
+            ToolOutput::Done(done)
         })
     }
 }

@@ -1,7 +1,7 @@
 // Copyright 2026 Anud Inc.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! The nine recorded session fixtures.
+//! The ten recorded session fixtures.
 //!
 //! | Fixture | Contents |
 //! | --- | --- |
@@ -13,7 +13,8 @@
 //! | client-gone | A client tool whose app disconnects: awaiting client, timeout, resume |
 //! | display | Each starter display widget shown, a table retried, a chart that falls back, an unknown widget |
 //! | kits-offer | For each profile, model and set of grants, the exact kit tools offered |
-//! | kits-files | The files kit: reads without asking, an edit approved for the session, failures as results |
+//! | kits-files-read | The files kit's read tools: listings, a paged read, searches, refusals as results |
+//! | kits-files-write | The files kit's changing tools: approved for the session, another folder asks, an irreversible change offers once, a denial |
 
 mod approval;
 mod autonomous_run;
@@ -21,6 +22,8 @@ mod chat_basic;
 mod client_gone;
 mod display;
 pub mod kits_files;
+mod kits_files_read;
+mod kits_files_write;
 mod kits_offer;
 mod long_thread;
 mod tool_heavy;
@@ -64,16 +67,26 @@ pub fn all() -> Vec<Fixture> {
         client_gone(),
         display(),
         kits_offer(),
-        kits_files(),
+        kits_files_read(),
+        kits_files_write(),
     ]
 }
 
-/// kits-files.
-pub fn kits_files() -> Fixture {
+/// kits-files-read.
+pub fn kits_files_read() -> Fixture {
     Fixture {
-        name: "kits-files",
+        name: "kits-files-read",
         committed: true,
-        events: kits_files::record(),
+        events: kits_files_read::record(),
+    }
+}
+
+/// kits-files-write.
+pub fn kits_files_write() -> Fixture {
+    Fixture {
+        name: "kits-files-write",
+        committed: true,
+        events: kits_files_write::record(),
     }
 }
 

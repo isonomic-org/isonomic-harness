@@ -6,10 +6,15 @@ reference ID only.
 
 ## R1: openai/codex (codex-rs), commit df06542
 
-Ported into `crates/harness-toolkit/src/files/ladder.rs` (the line steps of
-the match ladder and the punctuation table) and
-`crates/harness-toolkit/tests/parity/ladder.rs` (its test cases), from
-`codex-rs/apply-patch/src/seek_sequence.rs`.
+Ported into:
+
+- `crates/harness-toolkit/src/files/ladder.rs`: the line steps of the match
+  ladder and the punctuation table, from
+  `codex-rs/apply-patch/src/seek_sequence.rs`.
+- `crates/harness-toolkit/src/files/lines.rs`: the line-ending model, from
+  `codex-rs/apply-patch/src/text_file.rs`.
+- `crates/harness-toolkit/tests/parity/R1/`: test cases from
+  `seek_sequence.rs` and `codex-rs/apply-patch/src/file_update_tests.rs`.
 
 Its NOTICE file reads, in the part that applies:
 
@@ -25,5 +30,6 @@ distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
 KIND, either express or implied. See the License for the specific language
 governing permissions and limitations under the License.
 
-The ported code was translated and changed: each step must match exactly
-one place, and the search works on a file's lines with their endings kept.
+The ported code was translated and changed: each ladder step must match
+exactly one place, lines borrow from the file instead of owning their text,
+and a replacement adds no ending to a file's last line.

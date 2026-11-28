@@ -10,8 +10,8 @@
 //! Steps two to four, the punctuation table and their test cases are
 //! ported from R1 at its pinned commit (Apache-2.0); see
 //! THIRD-PARTY-NOTICES.md. R1's tests are parity vectors in
-//! `tests/parity/ladder.rs`. Unlike R1, which takes the first match, a step
-//! that matches more than one place stops the ladder (deviation: see
+//! `tests/parity/R1/`. Unlike R1, which takes the first match, a step that
+//! matches more than one place stops the ladder (deviation: see
 //! `docs/kits-deviations.md`).
 
 /// Which step found the place.
@@ -66,19 +66,14 @@ fn normalise(s: &str) -> String {
         .collect()
 }
 
+use super::lines::{Line, Source};
+
 /// How a step compares a file line with a line of `find`.
 type Same = fn(&str, &str) -> bool;
 
-/// A line without its ending.
-fn bare(line: &str) -> &str {
-    line.strip_suffix('\n')
-        .map(|l| l.strip_suffix('\r').unwrap_or(l))
-        .unwrap_or(line)
-}
-
 /// Every start index where `pattern` matches `lines` under `same`. Like
 /// R1's search, a pattern longer than the input matches nowhere.
-fn starts(lines: &[&str], pattern: &[&str], same: impl Fn(&str, &str) -> bool) -> Vec<usize> {
+fn starts(lines: &[&str], pattern: &[&str], same: Same) -> Vec<usize> {
     if pattern.is_empty() || pattern.len() > lines.len() {
         return Vec::new();
     }
@@ -87,20 +82,40 @@ fn starts(lines: &[&str], pattern: &[&str], same: impl Fn(&str, &str) -> bool) -
             pattern
                 .iter()
                 .enumerate()
-                .all(|(p, pat)| same(bare(lines[i + p]), pat))
+                .all(|(p, pat)| same(lines[i + p], pat))
         })
         .collect()
 }
 
+/// Every byte offset where `find` occurs, overlapping ones included.
+fn occurrences(content: &str, find: &str) -> Vec<usize> {
+    let mut out = Vec::new();
+    let mut from = 0;
+    while let Some(at) = content[from..].find(find).map(|i| i + from) {
+        out.push(at);
+        let step = content[at..].chars().next().map_or(1, char::len_utf8);
+        from = at + step;
+    }
+    out
+}
+
+/// The line (from 1) that byte offset `at` falls on.
+fn line_of(content: &str, at: usize) -> usize {
+    let before = Source::parse(&content[..at]);
+    match before.lines.last() {
+        Some(l) if l.ending.is_none() => before.lines.len(),
+        _ => before.lines.len() + 1,
+    }
+}
+
 /// Find the one place `find` names in `content` and put `replace` there.
-/// An empty `find` matches nowhere.
+/// An empty `find` matches nowhere. Line numbers are the file's own lines,
+/// from 1.
 pub fn replace_one(content: &str, find: &str, replace: &str) -> Found {
     if find.is_empty() {
         return Found::None;
     }
-    let exact: Vec<usize> = content.match_indices(find).map(|(at, _)| at).collect();
-    let line_of = |at: usize| content[..at].matches('\n').count() + 1;
-    match exact.as_slice() {
+    match occurrences(content, find).as_slice() {
         [at] => {
             let mut text = String::with_capacity(content.len() + replace.len());
             text.push_str(&content[..*at]);
@@ -109,15 +124,16 @@ pub fn replace_one(content: &str, find: &str, replace: &str) -> Found {
             return Found::One {
                 text,
                 step: Step::Exact,
-                line: line_of(*at),
+                line: line_of(content, *at),
             };
         }
         [] => {}
-        many => return Found::Many(many.iter().map(|&at| line_of(at)).collect()),
+        many => return Found::Many(many.iter().map(|&at| line_of(content, at)).collect()),
     }
 
-    let lines: Vec<&str> = content.split_inclusive('\n').collect();
-    let pattern: Vec<&str> = find.lines().collect();
+    let source = Source::parse(content);
+    let lines = source.texts();
+    let pattern = Source::parse(find).texts();
     let steps: [(Step, Same); 3] = [
         (Step::TrimEnd, |a, b| a.trim_end() == b.trim_end()),
         (Step::Trim, |a, b| a.trim() == b.trim()),
@@ -127,24 +143,45 @@ pub fn replace_one(content: &str, find: &str, replace: &str) -> Found {
         match starts(&lines, &pattern, same).as_slice() {
             [] => continue,
             [i] => {
-                let end = i + pattern.len();
-                let mut text: String = lines[..*i].concat();
-                text.push_str(replace);
-                let had_ending = lines[end - 1].ends_with('\n');
-                if had_ending && !replace.is_empty() && !replace.ends_with('\n') {
-                    text.push('\n');
-                }
-                text.push_str(&lines[end..].concat());
                 return Found::One {
-                    text,
+                    text: splice(&source, *i, pattern.len(), replace),
                     step,
                     line: i + 1,
-                };
+                }
             }
             many => return Found::Many(many.iter().map(|i| i + 1).collect()),
         }
     }
     Found::None
+}
+
+/// Rebuild the file with lines `at..at + len` replaced by `replace`'s
+/// lines. As in R1, unchanged lines keep their endings and inserted lines
+/// take the file's preferred ending; unlike R1, the last inserted line ends
+/// only where the last replaced line did, so no ending is added to a file.
+fn splice(source: &Source<'_>, at: usize, len: usize, replace: &str) -> String {
+    let mut out = String::new();
+    let push = |out: &mut String, l: &Line<'_>| {
+        out.push_str(l.text);
+        if let Some(e) = l.ending {
+            out.push_str(e.as_str());
+        }
+    };
+    for l in &source.lines[..at] {
+        push(&mut out, l);
+    }
+    let inserted = Source::parse(replace).texts();
+    let last_ended = source.lines[at + len - 1].ending.is_some();
+    for (n, text) in inserted.iter().enumerate() {
+        out.push_str(text);
+        if n + 1 < inserted.len() || last_ended {
+            out.push_str(source.preferred.as_str());
+        }
+    }
+    for l in &source.lines[at + len..] {
+        push(&mut out, l);
+    }
+    out
 }
 
 #[cfg(test)]
@@ -179,6 +216,31 @@ mod tests {
         assert_eq!(
             replace_one(" x \n x \n", "x\n", "z"),
             Found::Many(vec![1, 2])
+        );
+    }
+
+    #[test]
+    fn line_steps_keep_the_file_s_endings() {
+        let one = |c: &str, f: &str, r: &str| match replace_one(c, f, r) {
+            Found::One { text, .. } => text,
+            other => panic!("{other:?}"),
+        };
+        assert_eq!(one("a\r\n b \r\nc\r\n", "b\nc", "B\nC"), "a\r\nB\r\nC\r\n");
+        assert_eq!(one("a\n b", "b\n", "B"), "a\nB");
+        assert_eq!(one("a\n b \nc\n", "b\n", ""), "a\nc\n");
+        assert_eq!(one("a\rb \rc", "b", "B"), "a\rB \rc");
+    }
+
+    #[test]
+    fn overlapping_exact_matches_count_as_places() {
+        assert_eq!(replace_one("aaa", "aa", "b"), Found::Many(vec![1, 1]));
+        assert_eq!(
+            replace_one("x\naa\n", "aa", "b"),
+            Found::One {
+                text: "x\nb\n".into(),
+                step: Step::Exact,
+                line: 2
+            }
         );
     }
 

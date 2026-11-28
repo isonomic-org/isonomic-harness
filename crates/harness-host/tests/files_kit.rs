@@ -97,6 +97,16 @@ fn the_kit_is_offered_and_reads_and_edits_a_linked_folder() {
         Some("files.not_linked")
     );
     assert_eq!(fs.get("f1", "notes.md").as_deref(), Some("one\n2\n"));
+    // The result's meta is recorded for the person's view; a failure to
+    // resolve has none.
+    let meta = r[1].meta.as_ref().expect("a files result carries meta");
+    assert_eq!(meta.get("scope").and_then(Value::as_str), Some("f1"));
+    assert_eq!(
+        meta.get("path").and_then(Value::as_str),
+        Some("Design/notes.md")
+    );
+    assert!(meta.get("pre_image").is_some());
+    assert!(r[2].meta.is_none());
     let folders = m.log(&s).iter().find_map(|e| match &e.event {
         Event::System(sys) => sys.context.as_ref().map(|c| c.folders.clone()),
         _ => None,

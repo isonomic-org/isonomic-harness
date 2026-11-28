@@ -73,12 +73,21 @@
       "sessions": 8
     },
     {
-      "bytes": 14242,
+      "bytes": 16686,
       "committed": true,
-      "events": 45,
-      "file": "kits-files.jsonl",
-      "fnv1a64": "f2b7e32255a88e69",
-      "name": "kits-files",
+      "events": 51,
+      "file": "kits-files-read.jsonl",
+      "fnv1a64": "f627093b00ec2009",
+      "name": "kits-files-read",
+      "sessions": 1
+    },
+    {
+      "bytes": 21377,
+      "committed": true,
+      "events": 69,
+      "file": "kits-files-write.jsonl",
+      "fnv1a64": "85090b74fed46b17",
+      "name": "kits-files-write",
       "sessions": 1
     }
   ],
