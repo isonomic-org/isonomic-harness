@@ -137,6 +137,7 @@ impl Session {
     /// requests use the latest `system(preset)`.
     fn set_tools(&mut self, specs: Vec<ToolSpec>) {
         self.cfg.tools = specs;
+        self.cfg.offer_display();
         let current = self.events.iter().rev().find_map(|e| match &e.event {
             Event::System(s) if s.origin == SystemOrigin::Preset => Some(&s.text),
             _ => None,

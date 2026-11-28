@@ -143,6 +143,22 @@ open_enum!(
         Client,
         /// In a Cell. Refused until Milestone 6.
         Cell,
+        /// A display widget: no side effect; the host validates and
+        /// records it, and the kit renders it (revision 1).
+        Display,
+    }
+);
+
+open_enum!(
+    /// What became of a display call, on its `tool.result` (revision 1).
+    DisplayOutcome {
+        /// Valid: the kit renders the widget.
+        Shown,
+        /// Invalid the first time: the model may call again.
+        Retry,
+        /// Invalid again, or unparseable: the kit shows the input's
+        /// `fallback_text`, or a generic block without one.
+        Fallback,
     }
 );
 

@@ -199,7 +199,7 @@ pub struct ToolSpec {
     pub description: String,
     /// JSON Schema for its input.
     pub input_schema: Value,
-    /// Engine, client or cell.
+    /// Engine, client, cell or display.
     pub kind: ToolKind,
     /// What it may do.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -261,7 +261,7 @@ pub struct ToolCall {
     pub call: CallId,
     /// The tool's name.
     pub tool: String,
-    /// Engine, client or cell.
+    /// Engine, client, cell or display.
     pub kind: ToolKind,
     /// The input, parsed.
     pub input: Value,
@@ -298,6 +298,9 @@ pub struct ToolResult {
     /// How long it ran.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub duration_ms: Option<u64>,
+    /// For a display call only: shown, retry or fallback (revision 1).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub display: Option<DisplayOutcome>,
 }
 
 /// Output kept from a long result: the first and last bytes.

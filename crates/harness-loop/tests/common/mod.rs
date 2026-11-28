@@ -53,6 +53,7 @@ impl Driver {
 
     pub fn with_profile(mut cfg: Config, profile: Profile) -> Self {
         cfg.profile = Some(profile.clone());
+        cfg.offer_display();
         let start = SessionStart {
             class: SessionClass::Interactive,
             app: AppId::from("chat"),

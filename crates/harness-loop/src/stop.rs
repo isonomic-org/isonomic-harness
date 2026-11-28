@@ -158,6 +158,7 @@ impl Session {
                 error: None,
                 truncated: None,
                 duration_ms: None,
+                display: None,
             };
             self.emit(step.clone(), Event::ToolResult(r));
         }

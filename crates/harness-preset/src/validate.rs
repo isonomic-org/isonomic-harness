@@ -207,6 +207,7 @@ fn build(c: &mut Check, f: PresetFile) -> Preset {
         allow: f.tools.allow.clone(),
         client: f.tools.client,
     };
+    let display = display_settings(c, &f.display, &class);
 
     let limits = Limits {
         tokens: c.limit("limits.tokens", f.limits.tokens),
@@ -353,11 +354,47 @@ fn build(c: &mut Check, f: PresetFile) -> Preset {
         prompt,
         model,
         tools,
+        display,
         limits,
         policy,
         context,
         title,
         compaction,
         wake,
+    }
+}
+
+/// At most this many display tools in an interactive preset.
+pub(crate) const MAX_DISPLAY_TOOLS: usize = 5;
+
+fn display_settings(
+    c: &mut Check,
+    f: &crate::file::DisplayFile,
+    class: &SessionClass,
+) -> crate::DisplaySettings {
+    let mut seen = BTreeSet::new();
+    for (i, t) in f.tools.iter().enumerate() {
+        let path = format!("display.tools[{i}]");
+        if harness_core::display::display_spec(t).is_none() {
+            c.error(&path, format!("\"{t}\" is not a display widget"));
+        } else if !seen.insert(t.as_str()) {
+            c.warn(&path, format!("\"{t}\" is listed twice"));
+        }
+    }
+    if *class == SessionClass::Interactive && f.tools.len() > MAX_DISPLAY_TOOLS {
+        c.error(
+            "display.tools",
+            format!("an interactive preset offers at most {MAX_DISPLAY_TOOLS} display tools"),
+        );
+    }
+    let mut tools = Vec::new();
+    for t in &f.tools {
+        if harness_core::display::display_spec(t).is_some() && !tools.contains(t) {
+            tools.push(t.clone());
+        }
+    }
+    crate::DisplaySettings {
+        tools,
+        enabled: f.enabled,
     }
 }

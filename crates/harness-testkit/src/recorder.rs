@@ -302,6 +302,14 @@ impl Recorder {
         self.emit(cx, Event::ToolResult(result));
     }
 
+    /// `tool.result` for a display call: the host answers at once, and
+    /// records no duration.
+    pub fn display_result(&mut self, cx: &mut Ctx, result: ToolResult) {
+        self.advance(1);
+        cx.history_bytes += result.content.iter().map(block_len).sum::<u64>();
+        self.emit(cx, Event::ToolResult(result));
+    }
+
     /// `step.end`.
     pub fn end_step(&mut self, cx: &mut Ctx, outcome: StepOutcome) {
         self.advance(20);

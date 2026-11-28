@@ -1,6 +1,6 @@
 # Chat: the reference interactive preset.
 id = "chat"
-version = 5
+version = 6
 name = "Chat"
 class = "interactive"
 
@@ -35,6 +35,11 @@ title_model = "local:smallest"
 [tools]
 allow = ["ask_user", "todo", "plan", "now", "connections", "connection_read", "connection_act"]
 client = true
+
+# Display widgets the model may show inline (docs/display.md). Offered only
+# where the model is capable on this hardware profile.
+[display]
+tools = ["show_table", "show_steps", "show_metrics", "show_chart"]
 
 [limits]
 tokens = 200000

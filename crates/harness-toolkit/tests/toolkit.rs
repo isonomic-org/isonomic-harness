@@ -157,6 +157,7 @@ fn harness_testkit_free_events() -> Vec<SessionEvent> {
         error: None,
         truncated: None,
         duration_ms: None,
+        display: None,
     };
     vec![
         ev(1, Event::ToolCall(call("c1", "Book a room"))),

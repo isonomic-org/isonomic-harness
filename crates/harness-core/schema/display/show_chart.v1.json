@@ -1,0 +1,22 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "points", "fallback_text"],
+  "properties": {
+    "title": { "type": "string", "maxLength": 80 },
+    "kind": { "type": "string", "enum": ["bar", "line", "area"] },
+    "series": { "type": "string", "maxLength": 40 },
+    "points": {
+      "type": "array", "minItems": 2, "maxItems": 60,
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["label", "value"],
+        "properties": {
+          "label": { "type": "string", "minLength": 1, "maxLength": 24 },
+          "value": { "type": "number" }
+        }
+      }
+    },
+    "unit": { "type": "string", "maxLength": 12 },
+    "fallback_text": { "type": "string", "minLength": 1, "maxLength": 4000 }
+  }
+}

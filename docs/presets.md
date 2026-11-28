@@ -19,6 +19,7 @@ keys are errors.
 | `[[prompt]] id, text` | none | More sections, in order. `system(preset)` is every section joined by a blank line. The section with the id `tools` is included only while the session offers tools; when the offered tools change that, a new `system(preset)` is recorded and later requests use it. |
 | `[model] id, max_output_tokens, reasoning, title_model` | `local:default`, 4096, `off`, none | `reasoning`: `off`, `low`, `medium`, `high`. `title_model`: the small model for titles on the Low profile. |
 | `[tools] allow, client` | `[]`, `true` | Engine and toolkit tools by name; whether the app's client tools are offered. |
+| `[display] tools, enabled` | `[]`, `true` | Display widgets the model may show inline (`docs/display.md`), by name; each must be a known display spec, at most 5 in an interactive preset, and a duplicate warns. They are not listed in `tools.allow`. Offered only when `enabled` and `display_capable` holds for the session's profile and model. |
 | `[limits] tokens, steps, wall_ms, cost_micros` | unlimited | Per turn. An app's preset may only tighten the host's ceiling. |
 | `[policy] autonomy` | `supervised` | `strict` (any effect asks), `supervised`, `trusted` (outward runs unless the three-flag rule applies; code still asks). May only tighten the ceiling. |
 | `[policy] allow_outward` | `[]` | Outward tools pre-approved; each must be in `tools.allow`. Never overrides the three-flag rule. |

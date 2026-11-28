@@ -13,6 +13,7 @@
 pub mod block;
 pub mod class;
 pub mod clock;
+pub mod display;
 pub mod error;
 pub mod event;
 pub mod future;
@@ -43,7 +44,7 @@ pub const SCHEMA_VERSION: u32 = 1;
 /// new event types, new optional fields and new enum values. Readers accept
 /// every revision of their version and render what they don't know
 /// generically.
-pub const SCHEMA_REVISION: u32 = 0;
+pub const SCHEMA_REVISION: u32 = 1;
 
 /// The `format` value of a JSONL session-log header line.
 pub const LOG_FORMAT: &str = "isonomic.session-log";

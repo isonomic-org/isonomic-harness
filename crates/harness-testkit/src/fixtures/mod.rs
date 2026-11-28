@@ -1,7 +1,7 @@
 // Copyright 2026 Anud Inc.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! The six recorded session fixtures.
+//! The seven recorded session fixtures.
 //!
 //! | Fixture | Contents |
 //! | --- | --- |
@@ -11,11 +11,13 @@
 //! | autonomous-run | Two scheduled wakes, compaction (trim and summary), a delegated child, a budget stop |
 //! | long-thread | 10,000 events |
 //! | client-gone | A client tool whose app disconnects: awaiting client, timeout, resume |
+//! | display | Each starter display widget shown, a table retried, a chart that falls back, an unknown widget |
 
 mod approval;
 mod autonomous_run;
 mod chat_basic;
 mod client_gone;
+mod display;
 mod long_thread;
 mod tool_heavy;
 
@@ -56,6 +58,7 @@ pub fn all() -> Vec<Fixture> {
         autonomous_run(),
         long_thread(),
         client_gone(),
+        display(),
     ]
 }
 
@@ -106,6 +109,15 @@ pub fn long_thread() -> Fixture {
         name: "long-thread",
         committed: false,
         events: long_thread::record(),
+    }
+}
+
+/// display.
+pub fn display() -> Fixture {
+    Fixture {
+        name: "display",
+        committed: true,
+        events: display::record(),
     }
 }
 
@@ -208,6 +220,7 @@ pub(crate) mod build {
             error: None,
             truncated: None,
             duration_ms: None,
+            display: None,
         }
     }
 

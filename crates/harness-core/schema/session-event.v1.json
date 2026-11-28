@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://isonomic.com/schema/session-event/v1.json",
-  "title": "Isonomic session event, schema v1, revision 0",
+  "title": "Isonomic session event, schema v1, revision 1",
   "description": "One durable session event: the envelope (session, seq, at, turn, step), then type, then the payload. Producers emit exactly these shapes. Readers must also accept unknown event types, unknown block types, unknown enum values and unknown fields, which later revisions add, and render them generically.",
   "type": "object",
   "required": ["session", "seq", "at", "type"],
@@ -65,7 +65,7 @@
       "type": "array",
       "items": { "enum": ["reads_private_data", "ingests_untrusted_content", "acts_outward", "executes_code"] }
     },
-    "tool_kind": { "enum": ["engine", "client", "cell"] },
+    "tool_kind": { "enum": ["engine", "client", "cell", "display"] },
     "decider": {
       "type": "object",
       "required": ["scope"],
@@ -282,7 +282,8 @@
           "required": ["original_bytes", "head_bytes", "tail_bytes"],
           "properties": { "original_bytes": { "$ref": "#/$defs/uint" }, "head_bytes": { "$ref": "#/$defs/uint" }, "tail_bytes": { "$ref": "#/$defs/uint" } }
         },
-        "duration_ms": { "$ref": "#/$defs/uint" }
+        "duration_ms": { "$ref": "#/$defs/uint" },
+        "display": { "enum": ["shown", "retry", "fallback"] }
       }
     },
     "approval.request": {

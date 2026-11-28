@@ -5,7 +5,7 @@
       "committed": true,
       "events": 64,
       "file": "chat-basic.jsonl",
-      "fnv1a64": "50d63506e75eb740",
+      "fnv1a64": "f1049515eb3a9b47",
       "name": "chat-basic",
       "sessions": 3
     },
@@ -14,7 +14,7 @@
       "committed": true,
       "events": 37,
       "file": "tool-heavy.jsonl",
-      "fnv1a64": "6475b078996e001e",
+      "fnv1a64": "0a2fb30e3bc44dc7",
       "name": "tool-heavy",
       "sessions": 1
     },
@@ -23,7 +23,7 @@
       "committed": true,
       "events": 63,
       "file": "approval.jsonl",
-      "fnv1a64": "50224ba92c1c6153",
+      "fnv1a64": "bd50c1776106430e",
       "name": "approval",
       "sessions": 1
     },
@@ -32,7 +32,7 @@
       "committed": true,
       "events": 43,
       "file": "autonomous-run.jsonl",
-      "fnv1a64": "f58e8d0f50c96fd2",
+      "fnv1a64": "7d2471952d949e15",
       "name": "autonomous-run",
       "sessions": 2
     },
@@ -41,7 +41,7 @@
       "committed": false,
       "events": 10000,
       "file": "long-thread.jsonl",
-      "fnv1a64": "8361705459f54b8b",
+      "fnv1a64": "0a0ca26bb826c63e",
       "name": "long-thread",
       "sessions": 1
     },
@@ -50,13 +50,22 @@
       "committed": true,
       "events": 28,
       "file": "client-gone.jsonl",
-      "fnv1a64": "189805686dddb0fb",
+      "fnv1a64": "5dd7945be2cb67ca",
       "name": "client-gone",
+      "sessions": 1
+    },
+    {
+      "bytes": 15129,
+      "committed": true,
+      "events": 46,
+      "file": "display.jsonl",
+      "fnv1a64": "a68cf9c11a4a66f3",
+      "name": "display",
       "sessions": 1
     }
   ],
   "format": "isonomic.session-log",
   "generator": "cargo xtask fixtures",
-  "revision": 0,
+  "revision": 1,
   "version": 1
 }
