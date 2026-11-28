@@ -5,6 +5,22 @@ Entries for the Milestone 0 crates (step 0 through harness-host) are in
 `status-milestone-0.md`; later entries from 15 November and before are in
 `status-2026-11-15.md`.
 
+## 2026-11-28 — Tool kits: the files kit
+
+The first kit, per "Tool kits: architecture v0.3" (`docs/kits.md`).
+Deviations 1 to 11 under "The files kit" in `docs/kits-deviations.md`.
+
+- **harness-core**: `kits` (the seven specs, `kit_spec`, the `files.*`
+  error codes). No schema change.
+- **harness-toolkit**: `files`: the `FileSystem` trait, the path resolver,
+  the match ladder ported from R1 with parity vectors, `MemoryFs`, and
+  `files_kit`. Dev-depends on harness-testkit for the fixture replay.
+- **harness-host** (API change): `Deps.files`; a host given one registers
+  the kit. `MemoryHost::with_files`.
+- **harness-preset**: chat is version 7 and uses the files kit.
+- **harness-testkit**: the kits-files fixture.
+- `THIRD-PARTY-NOTICES.md` carries R1's notice.
+
 ## 2026-11-28 — Tool kits: the frame
 
 The shared frame every tool kit runs on, per "Tool kits: architecture

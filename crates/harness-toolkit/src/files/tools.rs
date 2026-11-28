@@ -376,11 +376,13 @@ impl FilesTool {
                 ),
             )),
             Found::Many(lines) => {
-                let list: Vec<String> = lines.iter().map(usize::to_string).collect();
+                let mut on: Vec<usize> = lines.clone();
+                on.dedup();
+                let list: Vec<String> = on.iter().map(usize::to_string).collect();
                 Err(FsError::new(
                     code::MANY_MATCHES,
                     format!(
-                        "find matched {} places, at lines {}. Give more lines so it matches one.",
+                        "find matched {} places, on lines {}. Give more lines so it matches one.",
                         lines.len(),
                         list.join(", ")
                     ),

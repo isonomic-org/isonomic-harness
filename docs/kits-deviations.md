@@ -77,3 +77,58 @@ gate; the identity specification (in house) for grant answers.
     that every fixture replays byte for byte. The cost is that a log's
     header no longer says whether kit fields can appear; readers check the
     version only and ignore fields they don't know, so nothing breaks.
+
+## The files kit (harness #50)
+
+References opened at their pins: R1 (Port) `apply-patch/src/seek_sequence.rs`
+and its tests, `file_update.rs`, `file_update_tests.rs`, `text_file.rs`,
+`parser.rs`; R2 (Port) the developer extension's `edit.rs` and `tree.rs`;
+R4 (Behaviour) the filesystem server's `lib.ts` and `path-validation.ts`;
+R13 (Behaviour) the edit tool. Code is taken from R1 only (the ladder's line
+steps and punctuation table, `files/ladder.rs`), with R1's tests as parity
+vectors in `crates/harness-toolkit/tests/parity/`. R3, R5 and R6 are the
+engine's service's dependencies; the toolkit has only the memory store.
+
+1. **Every ladder step must match exactly one place.** R1 returns the first
+   match; here a step that matches more than one place stops the ladder
+   with `files.many_matches` and the lines, so an edit never lands on the
+   wrong copy. Step one is an exact substring, not R1's exact line match,
+   so a find inside one line works as in R2 and R13.
+2. **An identical find and replace succeeds with "No change"**, without
+   reading the file. R13 refuses it; nothing is wrong with the call.
+3. **Reads page by display lines.** A line longer than half the result cap
+   is split at a character boundary into display lines, and `from_line` and
+   the header count display lines. Every page then fits the cap and pages
+   cover the file with no gap or overlap (invariant 9). R2 and R4 return
+   the whole file or cut it.
+4. **Paths are logical**: a linked folder's label, then the path inside it.
+   Absolute, home, drive and `..` paths are refused before any service
+   call (`files.not_linked`, `files.outside_folder`). R4 checks real paths
+   against allowed directories; here the tools never see a real path.
+5. **Protected names.** `.git`, `.hg`, `.svn` and `.jj` anywhere in a path
+   (compared without case) are neither read nor changed, and `AGENTS.md` at
+   a folder's top is never changed (`files.protected`). Neither is the
+   linked folder itself.
+6. **An empty `list_dir` path lists the linked folders**, and its access
+   names the first linked folder, because an access has one scope. A read
+   grant on any linked folder therefore covers the listing of names.
+7. **Moves never replace and stay in one folder** (`files.exists`,
+   `files.cross_folder`). R2 overwrites; R4 refuses an existing target too.
+8. **Text search is plain, case-insensitive text, and the tool walks the
+   folder through `list` and `read`.** R5 is named as the engine's
+   dependency for search; the trait has no search method yet, so the
+   engine service cannot use it. Open: move search into `FileSystem` so the
+   engine's service does it with R5.
+9. **The places resolved by `access` are kept per call** and the run uses
+   them; a call that runs without its access check is refused
+   (`tool.unresolved`). A call denied after resolving leaves its entry until
+   the tool is dropped. Open: clear it when the host settles a call that
+   never runs.
+10. **The chat preset uses the files kit** (`[kits] use = ["files"]`,
+    version 7). Kit tools are offered only where a grant could cover them,
+    so sessions without a linked folder, and every existing fixture, are
+    unchanged.
+11. **The kits-files fixture is scripted, then checked.** Its results are
+    written in the recorder, and a harness-toolkit test runs every recorded
+    call again over the fixture's seed and requires the same content and
+    error code.

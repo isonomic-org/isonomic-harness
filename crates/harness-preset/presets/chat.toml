@@ -1,6 +1,6 @@
 # Chat: the reference interactive preset.
 id = "chat"
-version = 6
+version = 7
 name = "Chat"
 class = "interactive"
 
@@ -40,6 +40,11 @@ client = true
 # where the model is capable on this hardware profile.
 [display]
 tools = ["show_table", "show_steps", "show_metrics", "show_chart"]
+
+# Tool kits (docs/kits.md). Offered only where the person's grants could
+# cover them; the files kit needs a linked folder.
+[kits]
+use = ["files"]
 
 [limits]
 tokens = 200000

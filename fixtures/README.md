@@ -11,6 +11,7 @@ file or `MANIFEST.json` differs from the generator.
 | `approval` | 1 | An outward action approved in the shell's sheet, one denied by the owning app, an ambiguous answer treated as a denial, an ask-user question answered; location opted in |
 | `autonomous-run` | 2 | Two scheduled wakes; compaction that trims two long results and summarizes day 1; a fake delegated child session; a step-budget stop |
 | `long-thread` | 1 | Exactly 10,000 events. Generated, not committed (about 2 MB); its size and digest are in `MANIFEST.json` |
+| `kits-files` | 1 | The files kit: a listing and a paged read without asking, an edit under an ask-first grant approved for the session, a second edit remembered, a write to a read-only folder and an ambiguous find as results |
 | `client-gone` | 1 | A client tool whose app is gone: awaiting client, a 30-second timeout as a readable failure, then active again on reconnect |
 
 Every fixture validates against the JSON Schema, round-trips through the

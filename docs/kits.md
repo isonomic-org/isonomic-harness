@@ -82,6 +82,25 @@ standing grant's "ask first" and never outlives it: once the grant is
 revoked, the approval allows nothing (part of the grants contract). Purge forgets the purged
 sessions' approvals.
 
+## The files kit
+
+Seven tools over the host's `FileSystem` (`Deps.files`; `MemoryFs` is the
+fake), specified in `harness_core::kits::FILES_SPECS`: `list_dir`,
+`read_file` and `search_files` (core, parallel, reads), then `write_file`,
+`edit_file`, `move_path` and `trash_path` (serial, `modifies_data`). Paths
+are logical: a linked folder's label, then the path inside it. `access`
+resolves every path once, refuses what is not plainly inside a linked
+folder, read-only folders for changes, and protected names, and keeps the
+places for the run. Errors are the `files.*` codes in
+`harness_core::kits::files_errors`.
+
+`edit_file` finds its place with the match ladder (`files::ladder`): exact
+text, then whole lines ignoring trailing spaces, then ignoring spaces at
+both ends, then with typographic punctuation folded. Each step must find
+exactly one place. Reads page by display lines, so every page fits the
+result cap and pages cover the file with no gap. Differences from the
+references are in `docs/kits-deviations.md`.
+
 ## Tests
 
 - The verdict table row by row at each autonomy level, and every existing
@@ -91,3 +110,7 @@ sessions' approvals.
   kits-offer fixture.
 - The host flows with fake kit tools (harness-host `tests/kits.rs`).
 - A snapshot of every spec (harness-core `tests/specs.rs`).
+- The files kit over the memory store (harness-toolkit `tests/files.rs`),
+  the ladder's parity vectors (`tests/parity/`), the kits-files fixture
+  replayed through the tools (`tests/files_fixture.rs`), and the kit
+  through the host (harness-host `tests/files_kit.rs`).

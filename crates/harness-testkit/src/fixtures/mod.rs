@@ -1,7 +1,7 @@
 // Copyright 2026 Anud Inc.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! The eight recorded session fixtures.
+//! The nine recorded session fixtures.
 //!
 //! | Fixture | Contents |
 //! | --- | --- |
@@ -13,12 +13,14 @@
 //! | client-gone | A client tool whose app disconnects: awaiting client, timeout, resume |
 //! | display | Each starter display widget shown, a table retried, a chart that falls back, an unknown widget |
 //! | kits-offer | For each profile, model and set of grants, the exact kit tools offered |
+//! | kits-files | The files kit: reads without asking, an edit approved for the session, failures as results |
 
 mod approval;
 mod autonomous_run;
 mod chat_basic;
 mod client_gone;
 mod display;
+pub mod kits_files;
 mod kits_offer;
 mod long_thread;
 mod tool_heavy;
@@ -62,7 +64,17 @@ pub fn all() -> Vec<Fixture> {
         client_gone(),
         display(),
         kits_offer(),
+        kits_files(),
     ]
+}
+
+/// kits-files.
+pub fn kits_files() -> Fixture {
+    Fixture {
+        name: "kits-files",
+        committed: true,
+        events: kits_files::record(),
+    }
 }
 
 /// One fixture by name.
