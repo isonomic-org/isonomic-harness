@@ -5,6 +5,15 @@ Entries for the Milestone 0 crates (step 0 through harness-host) are in
 `status-milestone-0.md`; later entries from 15 November and before are in
 `status-2026-11-15.md`.
 
+## 2026-11-28 — No display tools for a model that does not call tools
+
+- **harness-loop**: `Config::calls_tools` (true by default) and
+  `with_tool_calls`; `offer_display` offers none when it is false.
+- **harness-host**: `model_config` sets it from `ModelCaps::tools`, so an
+  engine whose smallest model cannot call tools reports `tools: false` for
+  it and that model is offered no display tools on any profile.
+  `ScriptedModel::without_tools` for tests. No schema change.
+
 ## 2026-11-28 — A display call is the host's to answer
 
 - **harness-host**: `client_tool_result` for a display call is `NotFound`

@@ -415,3 +415,30 @@ fn an_app_cannot_answer_a_display_call() {
     let err = m.block_on(m.host.client_tool_result(&a, &s, &id, late));
     assert_eq!(err, Err(HostError::NotFound));
 }
+
+#[test]
+fn a_model_that_does_not_call_tools_gets_no_display_tools() {
+    let display = |m: &MemoryHost, s: &SessionId| {
+        m.log(s).iter().any(|e| match &e.event {
+            Event::StepStart(st) => st
+                .tools
+                .iter()
+                .flatten()
+                .any(|t| t.kind == ToolKind::Display),
+            _ => false,
+        })
+    };
+    for tools in [true, false] {
+        let m = MemoryHost::new();
+        if !tools {
+            m.model.without_tools("local:default");
+        }
+        let a = m.caller(&m.app_token("chat", AppKind::FirstParty));
+        let opts = CreateOptions::default();
+        let s = m
+            .block_on(m.host.create_session(&a, &PresetId::from("chat"), opts))
+            .unwrap();
+        m.block_on(m.host.send(&a, &s, text("Hi."))).unwrap();
+        assert_eq!(display(&m, &s), tools);
+    }
+}
