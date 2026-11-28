@@ -150,6 +150,7 @@ impl Session {
         let step = open_step.map(|(s, _)| s);
         for call in open_calls {
             let r = ToolResult {
+                meta: None,
                 call,
                 outcome: ToolOutcome::Cancelled,
                 content: vec![Block::text(

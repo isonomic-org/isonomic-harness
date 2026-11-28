@@ -135,6 +135,7 @@ impl Host {
             let slot = me.slot(&pending.session).ok_or(HostError::NotFound)?;
             let (decision, basis, answer) = interpret(&decision);
             let d = ApprovalDecision {
+                remember: None,
                 approval: id,
                 decision,
                 basis,

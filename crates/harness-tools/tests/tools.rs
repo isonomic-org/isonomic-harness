@@ -29,6 +29,7 @@ impl Tool for Echo {
             kind: ToolKind::Engine,
             effects: vec![],
             concurrency: Concurrency::Parallel,
+            scope: None,
         }
     }
 

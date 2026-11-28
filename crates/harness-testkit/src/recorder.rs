@@ -175,6 +175,7 @@ impl Recorder {
                 memory_policy: None,
                 text,
                 context: Some(RequestContext {
+                    folders: Vec::new(),
                     date,
                     time_zone: "America/New_York".into(),
                     language: "en".into(),

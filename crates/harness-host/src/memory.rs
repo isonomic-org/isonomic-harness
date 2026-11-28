@@ -155,6 +155,7 @@ impl Locale for FixedLocale {
         let m = if mp < 10 { mp + 3 } else { mp - 9 };
         let y = yoe + era * 400 + i64::from(m <= 2);
         RequestContext {
+            folders: Vec::new(),
             date: format!("{y:04}-{m:02}-{d:02}"),
             time_zone: "America/New_York".into(),
             language: "en".into(),

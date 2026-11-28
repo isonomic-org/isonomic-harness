@@ -163,6 +163,7 @@ fn outward(m: &MemoryHost, c: &Caller, s: &SessionId) -> ApprovalId {
             kind: ToolKind::Client,
             effects: vec![Effect::ActsOutward],
             concurrency: Concurrency::Serial,
+            scope: None,
         }],
     ))
     .unwrap();
@@ -254,6 +255,7 @@ fn client_gone_waits_times_out_and_resumes() {
             kind: ToolKind::Client,
             effects: vec![],
             concurrency: Concurrency::Serial,
+            scope: None,
         }],
     ))
     .unwrap();

@@ -31,6 +31,7 @@ fn spec(
         kind,
         effects,
         concurrency,
+        scope: None,
     }
 }
 

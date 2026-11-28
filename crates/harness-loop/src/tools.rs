@@ -176,6 +176,10 @@ impl Session {
                         rule,
                         effects: spec.effects.clone(),
                         expires_at: Some(expires),
+                        scope: None,
+                        preview: Vec::new(),
+                        reversible: None,
+                        remember: None,
                     }),
                 );
                 if let Some(c) = self.calls_mut().and_then(|c| c.calls.get_mut(&id)) {
@@ -264,6 +268,7 @@ impl Session {
                 truncated: done.truncated,
                 duration_ms: ran.then(|| now.saturating_sub(began)),
                 display,
+                meta: None,
             }),
         );
         self.batch_done();
@@ -388,6 +393,7 @@ impl Session {
             .unwrap_or_default();
         for (id, approval) in expired {
             let d = ApprovalDecision {
+                remember: None,
                 approval,
                 decision: Decision::Deny,
                 basis: Basis::Timeout,
@@ -464,6 +470,7 @@ impl Session {
                 }
                 State::Approval(approval, _) => {
                     let d = ApprovalDecision {
+                        remember: None,
                         approval,
                         decision: Decision::Deny,
                         basis: Basis::Cancelled,
@@ -496,6 +503,7 @@ impl Session {
                     truncated: None,
                     duration_ms: None,
                     display: None,
+                    meta: None,
                 }),
             );
         }

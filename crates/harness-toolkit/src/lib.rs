@@ -50,6 +50,7 @@ pub(crate) fn engine(name: &str, description: &str, input_schema: Value) -> Tool
         kind: ToolKind::Engine,
         effects: Vec::new(),
         concurrency: Concurrency::Serial,
+        scope: None,
     }
 }
 

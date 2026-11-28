@@ -10,6 +10,8 @@
 //! The schema reference is `docs/schema.md`; the JSON Schema is
 //! [`JSON_SCHEMA`], also at `crates/harness-core/schema/session-event.v1.json`.
 
+pub mod access;
+mod approval;
 pub mod block;
 pub mod class;
 pub mod clock;
@@ -21,6 +23,7 @@ pub mod ids;
 mod kinds;
 pub mod live;
 mod memory;
+pub mod offer;
 mod payload;
 pub mod value;
 
@@ -44,7 +47,7 @@ pub const SCHEMA_VERSION: u32 = 1;
 /// new event types, new optional fields and new enum values. Readers accept
 /// every revision of their version and render what they don't know
 /// generically.
-pub const SCHEMA_REVISION: u32 = 1;
+pub const SCHEMA_REVISION: u32 = 2;
 
 /// The `format` value of a JSONL session-log header line.
 pub const LOG_FORMAT: &str = "isonomic.session-log";

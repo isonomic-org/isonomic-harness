@@ -26,11 +26,13 @@ pub fn spec(name: &str, kind: ToolKind, effects: &[Effect], conc: Concurrency) -
         kind,
         effects: effects.to_vec(),
         concurrency: conc,
+        scope: None,
     }
 }
 
 pub fn ctx(location: Option<&str>) -> RequestContext {
     RequestContext {
+        folders: Vec::new(),
         date: "2026-11-15".into(),
         time_zone: "America/New_York".into(),
         language: "en".into(),

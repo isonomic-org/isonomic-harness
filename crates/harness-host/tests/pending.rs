@@ -30,6 +30,7 @@ fn client_tool(name: &str, effects: Vec<Effect>) -> ToolSpec {
         kind: ToolKind::Client,
         effects,
         concurrency: Concurrency::Serial,
+        scope: None,
     }
 }
 

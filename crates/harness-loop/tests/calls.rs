@@ -114,6 +114,7 @@ fn outward_actions_ask_and_decisions_round_trip() {
         app: None,
     };
     d.send(Input::Decision(ApprovalDecision {
+        remember: None,
         approval: req.approval.clone(),
         decision: Decision::Allow,
         basis: Basis::User,
@@ -137,6 +138,7 @@ fn outward_actions_ask_and_decisions_round_trip() {
     let (decision, basis, answer) =
         harness_policy::interpret(&harness_policy::DecisionInput::Text("maybe later".into()));
     d.send(Input::Decision(ApprovalDecision {
+        remember: None,
         approval: req.approval,
         decision,
         basis,

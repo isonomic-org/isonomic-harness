@@ -214,6 +214,7 @@ pub(crate) mod build {
     /// A tool result.
     pub fn result(call: &str, outcome: ToolOutcome, content: Vec<Block>) -> ToolResult {
         ToolResult {
+            meta: None,
             call: CallId::from(call),
             outcome,
             content,

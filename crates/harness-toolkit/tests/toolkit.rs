@@ -151,6 +151,7 @@ fn harness_testkit_free_events() -> Vec<SessionEvent> {
         child: None,
     };
     let result = |id: &str, outcome| ToolResult {
+        meta: None,
         call: CallId::from(id),
         outcome,
         content: vec![],

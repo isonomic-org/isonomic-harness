@@ -34,6 +34,10 @@ fn gated(
             rule: ApprovalRule::ActsOutward,
             effects: vec![Effect::ActsOutward],
             expires_at: Some(expires),
+            scope: None,
+            preview: Vec::new(),
+            reversible: None,
+            remember: None,
         }),
     );
     approval
@@ -54,6 +58,7 @@ fn decision(
     answer: Option<&str>,
 ) -> ApprovalDecision {
     ApprovalDecision {
+        remember: None,
         approval: ApprovalId::from(""),
         decision,
         basis,
